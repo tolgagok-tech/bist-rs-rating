@@ -1,50 +1,82 @@
 import yfinance as yf
 import pandas as pd
 import numpy as np
-import time
+import os
+from datetime import datetime
 
-# Hisse listesi (Kısa tutalım ki Yahoo engellemesin, çalışınca büyütürüz)
-bist_tickers = ["THYAO.IS", "EREGL.IS", "ASELS.IS", "TUPRS.IS", "SISE.IS", "AKBNK.IS", "KCHOL.IS", "ARCLK.IS", "FROTO.IS", "BIMAS.IS", "SAHOL.IS", "GARAN.IS", "YKBNK.IS", "ISCTR.IS", "PGSUS.IS"]
+# 1. AYARLAR VE HİSSE LİSTESİ
+# Endeksi (XU100.IS) mutlaka listeye ekliyoruz
+tickers = ["XU100.IS", "THYAO.IS", "EREGL.IS", "ASELS.IS", "TUPRS.IS", 
+           "SISE.IS", "AKBNK.IS", "KCHOL.IS", "ARCLK.IS", "FROTO.IS", 
+           "BIMAS.IS", "SAHOL.IS", "GARAN.IS", "YKBNK.IS", "ISCTR.IS", "PGSUS.IS"]
 
-def get_data_with_retry(ticker):
-    for i in range(3): # 3 kere deneyecek
-        try:
-            df = yf.download(ticker, period="2y", interval="1d", progress=False, timeout=10)
-            if not df.empty and len(df) > 252:
-                return df['Close']
-        except:
-            time.sleep(2)
+DATA_FILE = "bist_data.csv"
+
+def get_market_data(ticker_list):
+    """Veriyi toplu indirir ve yerel bir dosyaya kaydeder."""
+    print(f"{len(ticker_list)} sembol için veri indiriliyor...")
+    # 'threads=True' indirmeyi hızlandırır, 'group_by' sütun yapısını düzenler
+    df = yf.download(ticker_list, period="2y", interval="1d", progress=True, threads=True)
+    
+    # Sadece 'Close' (Kapanış) fiyatlarını alalım
+    if 'Close' in df.columns:
+        close_data = df['Close']
+        close_data.to_csv(DATA_FILE)
+        return close_data
     return None
 
-print("Endeks verisi alınıyor...")
-xu100 = get_data_with_retry("XU100.IS")
-
-scores = []
-if xu100 is not None:
-    print(f"Toplam {len(bist_tickers)} dev hisse analiz ediliyor...")
-    for t in bist_tickers:
-        data = get_data_with_retry(t)
-        if data is not None:
-            try:
-                # Hesaplama
-                p_now = float(data.iloc[-1])
-                p_3m, p_6m, p_9m, p_12m = float(data.iloc[-63]), float(data.iloc[-126]), float(data.iloc[-189]), float(data.iloc[-252])
-                s_perf = (p_now/p_3m*0.4)+(p_now/p_6m*0.2)+(p_now/p_9m*0.2)+(p_now/p_12m*0.2)
-                
-                x_now = float(xu100.iloc[-1])
-                x_perf = (x_now/float(xu100.iloc[-63])*0.4)+(x_now/float(xu100.iloc[-126])*0.2)+(x_now/float(xu100.iloc[-189])*0.2)+(x_now/float(xu100.iloc[-252])*0.2)
-                
-                scores.append((s_perf / x_perf) * 100)
-                print(f"{t} başarıyla hesaplandı.")
-            except: pass
-        time.sleep(1) # Yahoo'yu kızdırmamak için bekleme
-
-if not scores:
-    print("HATA: Veri hala çekilemiyor. Lütfen 5 dakika sonra tekrar deneyin.")
+# 2. VERİ ÇEKME VEYA YÜKLEME
+# Eğer bugün veri indirdiysek tekrar Yahoo'yu rahatsız etmeyelim
+if os.path.exists(DATA_FILE):
+    # Dosya bugün mü oluşturuldu?
+    file_time = datetime.fromtimestamp(os.path.getmtime(DATA_FILE)).date()
+    if file_time == datetime.now().date():
+        print("Güncel veri yerel dosyadan yükleniyor...")
+        data = pd.read_csv(DATA_FILE, index_col=0, parse_dates=True)
+    else:
+        data = get_market_data(tickers)
 else:
-    scores.sort(reverse=True)
-    results = np.percentile(scores, [99, 90, 70, 50, 30, 10, 1])
-    print("\n--- BIST RS RATING DEĞERLERİNİZ ---")
-    labels = ["first2 (99)", "scnd2 (90)", "thrd2 (70)", "frth2 (50)", "ffth2 (30)", "sxth2 (10)", "svth2 (1)"]
-    for l, v in zip(labels, results):
-        print(f"{l}: {round(float(v), 2)}")
+    data = get_market_data(tickers)
+
+# 3. RS RATING HESAPLAMA
+if data is not None:
+    # Boş verileri bir önceki günle doldur (Hafta sonu/Tatil kaymaları için)
+    data = data.ffill()
+    
+    results_list = []
+    
+    # Endeks (XU100) Performansı
+    xu = data["XU100.IS"]
+    # MarketSmith Formülü: (Şu an/3ay * 0.4) + (Şu an/6ay * 0.2) + (Şu an/9ay * 0.2) + (Şu an/12ay * 0.2)
+    x_perf = (xu.iloc[-1]/xu.iloc[-63]*0.4) + (xu.iloc[-1]/xu.iloc[-126]*0.2) + \
+             (xu.iloc[-1]/xu.iloc[-189]*0.2) + (xu.iloc[-1]/xu.iloc[-252]*0.2)
+
+    print("\nAnaliz yapılıyor...")
+    for t in tickers:
+        if t == "XU100.IS" or t not in data.columns:
+            continue
+            
+        try:
+            s = data[t]
+            # Hisse Performansı
+            s_perf = (s.iloc[-1]/s.iloc[-63]*0.4) + (s.iloc[-1]/s.iloc[-126]*0.2) + \
+                     (s.iloc[-1]/s.iloc[-189]*0.2) + (s.iloc[-1]/s.iloc[-252]*0.2)
+            
+            # Göreceli Güç Skoru (Endekse oranla)
+            rs_score = (s_perf / x_perf) * 100
+            results_list.append({"Hisse": t, "RS_Raw": rs_score})
+        except Exception as e:
+            print(f"{t} hesaplanamadı: {e}")
+
+    # 4. PERCENTILE (YÜZDELİK) SIRALAMA
+    final_df = pd.DataFrame(results_list)
+    if not final_df.empty:
+        # RS_Raw değerlerini 1-99 arası puanla (MarketSmith mantığı)
+        final_df['RS_Rating'] = final_df['RS_Raw'].rank(pct=True) * 99
+        final_df = final_df.sort_values(by="RS_Rating", ascending=False)
+
+        print("\n--- BIST RS RATING SONUÇLARI ---")
+        print(final_df[['Hisse', 'RS_Rating']].round(2).to_string(index=False))
+    else:
+        print("Hesaplanacak veri bulunamadı.")
+       
