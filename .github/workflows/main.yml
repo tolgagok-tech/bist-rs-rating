@@ -1,19 +1,32 @@
-name: BIST RS Hesaplayıcı
+name: BIST RS Rating Otomatik Analiz
+
 on:
-  schedule:
-    - cron: '0 19 * * 1-5' # Hafta içi her akşam 22:00 TSİ
   workflow_dispatch: 
+  schedule:
+    - cron: '35 15 * * 1-5' 
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v2
+      - name: Repo Kontrol
+        uses: actions/checkout@v3
+
       - name: Python Kur
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
-          python-version: '3.9' # Burası düzeltildi
-      - name: Kütüphaneleri Yükle
-        run: pip install yfinance pandas numpy
-      - name: Hesapla
+          python-version: '3.9'
+
+      - name: Kütüphaneleri Yukle
+        run: |
+          pip install yfinance pandas
+
+      - name: Analizi Calistir
         run: python script.py
+
+      - name: Sonuclari Kaydet (Artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: BIST-RS-Rating-Listesi
+          path: bist_rs_siralamasi.csv
