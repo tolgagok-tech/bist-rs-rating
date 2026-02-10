@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import time
 
-# --- HATA VERMEYEN TAM LİSTE ---
+# --- TAM LİSTE ---
 semboller = [
     "A1CAP.IS", "ACSEL.IS", "ADEL.IS", "ADESE.IS", "AEFES.IS", "AFYON.IS", "AGESA.IS", "AGHOL.IS", "AGROT.IS", "AHGAZ.IS",
     "AKBNK.IS", "AKCNS.IS", "AKENR.IS", "AKFGY.IS", "AKFYE.IS", "AKGRT.IS", "AKMGY.IS", "AKSA.IS", "AKSEN.IS", "AKSGY.IS",
@@ -56,63 +56,59 @@ semboller = [
     "YONGA.IS", "YUNSA.IS", "YYAPI.IS", "YYLGD.IS", "ZEDUR.IS", "ZOREN.IS", "ZRGYO.IS"
 ]
 
-def rs_hesapla(ticker, endeks_perf):
+def get_price(ticker):
     try:
-        # Daha fazla veri çekerek güvenli bölgede kalalım
         data = yf.download(ticker, period="2y", interval="1d", progress=False)
-        if len(data) < 252: return None
-        
-        fiyat = data['Close']
-        # MarketSmith Ağırlıklı Formül
-        # Mevcut bar sayısına göre en güvenli indexleri seçer
-        skor = (0.4 * (fiyat.iloc[-1] / fiyat.iloc[-min(63, len(fiyat))])) + \
-               (0.2 * (fiyat.iloc[-1] / fiyat.iloc[-min(126, len(fiyat))])) + \
-               (0.2 * (fiyat.iloc[-1] / fiyat.iloc[-min(189, len(fiyat))])) + \
-               (0.2 * (fiyat.iloc[-1] / fiyat.iloc[-min(252, len(fiyat))]))
-        
-        return (skor / endeks_perf) * 100
+        if data.empty: return None
+        # Sadece Kapanış fiyatını al ve tekil bir diziye (Series) çevir
+        close = data['Close']
+        if isinstance(close, pd.DataFrame):
+            close = close.iloc[:, 0]
+        return close.dropna()
     except: return None
 
-# Endeks verisini çek ve hata kontrolü yap
-try:
-    xu100_data = yf.download("XU100.IS", period="2y", interval="1d", progress=False)['Close']
-    if len(xu100_data) < 252:
-        # Eğer veri kısıtlıysa olan en eski veriyi kullan
-        end_perf = (0.4 * (xu100_data.iloc[-1] / xu100_data.iloc[-min(63, len(xu100_data))])) + \
-                   (0.2 * (xu100_data.iloc[-1] / xu100_data.iloc[-min(126, len(xu100_data))])) + \
-                   (0.2 * (xu100_data.iloc[-1] / xu100_data.iloc[-min(189, len(xu100_data))])) + \
-                   (0.2 * (xu100_data.iloc[-1] / xu100_data.iloc[-min(252, len(xu100_data))]))
-    else:
-        end_perf = (0.4 * (xu100_data.iloc[-1] / xu100_data.iloc[-63])) + \
-                   (0.2 * (xu100_data.iloc[-1] / xu100_data.iloc[-126])) + \
-                   (0.2 * (xu100_data.iloc[-1] / xu100_data.iloc[-189])) + \
-                   (0.2 * (xu100_data.iloc[-1] / xu100_data.iloc[-252]))
-except Exception as e:
-    print(f"Endeks verisi alınamadı: {e}")
-    end_perf = 1.0 # Hata durumunda nötr kabul et
+def rs_hesapla(fiyatlar, end_perf_skor):
+    if fiyatlar is None or len(fiyatlar) < 252: return None
+    try:
+        # Son Kapanış / Geçmiş Kapanış oranları
+        skor = (0.4 * (fiyatlar.iloc[-1] / fiyatlar.iloc[-min(63, len(fiyatlar))])) + \
+               (0.2 * (fiyatlar.iloc[-1] / fiyatlar.iloc[-min(126, len(fiyatlar))])) + \
+               (0.2 * (fiyatlar.iloc[-1] / fiyatlar.iloc[-min(189, len(fiyatlar))])) + \
+               (0.2 * (fiyatlar.iloc[-1] / fiyatlar.iloc[-min(252, len(fiyatlar))]))
+        return (float(skor) / end_perf_skor) * 100
+    except: return None
+
+# Endeks Hazırlığı
+xu100_fiyat = get_price("XU100.IS")
+if xu100_fiyat is not None and len(xu100_fiyat) >= 63:
+    end_perf = (0.4 * (xu100_fiyat.iloc[-1] / xu100_fiyat.iloc[-min(63, len(xu100_fiyat))])) + \
+               (0.2 * (xu100_fiyat.iloc[-1] / xu100_fiyat.iloc[-min(126, len(xu100_fiyat))])) + \
+               (0.2 * (xu100_fiyat.iloc[-1] / xu100_fiyat.iloc[-min(189, len(xu100_fiyat))])) + \
+               (0.2 * (xu100_fiyat.iloc[-1] / xu100_fiyat.iloc[-min(252, len(xu100_fiyat))]))
+    end_perf = float(end_perf)
+else:
+    end_perf = 1.0
 
 sonuclar = []
 print(f"{len(semboller)} sembol analiz ediliyor...")
 
 for s in semboller:
-    val = rs_hesapla(s, end_perf)
-    if val is not None:
-        sonuclar.append({'Hisse': s.replace(".IS", ""), 'RS_Skoru': round(float(val), 4)})
-    time.sleep(0.05) # Sunucuyu yormamak için kısa bekleme
+    fiyat_serisi = get_price(s)
+    rs_val = rs_hesapla(fiyat_serisi, end_perf)
+    if rs_val is not None:
+        sonuclar.append({'Hisse': s.replace(".IS", ""), 'RS_Skoru': round(rs_val, 4)})
+    time.sleep(0.02)
 
 if sonuclar:
     df = pd.DataFrame(sonuclar)
     df['RS_Rating'] = (df['RS_Skoru'].rank(pct=True) * 99).round(1)
     df = df.sort_values(by='RS_Rating', ascending=False)
-
-    # Replay Mode Değerleri
-    print("\n" + "="*40)
-    print("TRADINGVIEW 'REPLAY MODE' GİRİŞLERİ")
-    print("="*40)
+    
+    # Quantile değerleri (TradingView Replay Mode için)
+    print("\n--- TRADINGVIEW PARAMETRELERİ ---")
     for q in [0.99, 0.90, 0.70, 0.50, 0.30, 0.10, 0.01]:
-        print(f"Quantile {q}: {df['RS_Skoru'].quantile(q):.4f}")
+        val = df['RS_Skoru'].quantile(q)
+        print(f"Quantile {q}: {float(val):.4f}")
 
     df.to_csv('bist_rs_siralamasi.csv', index=False, sep=';')
-    print("\nAnaliz başarıyla tamamlandı.")
-else:
-    print("Hiçbir sonuç üretilemedi.")
+    print("\nAnaliz tamamlandı. Excel oluşturuldu.")
