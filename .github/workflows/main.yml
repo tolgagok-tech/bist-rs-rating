@@ -1,8 +1,8 @@
 name: BIST RS Hesaplayıcı
 on:
   schedule:
-    - cron: '0 19 * * 1-5' # Hafta içi her akşam 22:00 TSİ (19:00 UTC)
-  workflow_dispatch: # İstediğinde manuel çalıştırmak için
+    - cron: '0 19 * * 1-5' # Hafta içi her akşam 22:00 TSİ
+  workflow_dispatch: 
 
 jobs:
   build:
@@ -12,7 +12,7 @@ jobs:
       - name: Python Kur
         uses: actions/setup-python@v2
         with:
-          python-level: '3.9'
+          python-version: '3.9' # Burası düzeltildi
       - name: Kütüphaneleri Yükle
         run: pip install yfinance pandas numpy
       - name: Hesapla
