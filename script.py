@@ -3,118 +3,48 @@ import pandas as pd
 import numpy as np
 import time
 
-# BIST Hisseleri - Tam Liste (Hata verebilecek semboller temizlendi)
-bist_tickers = [
-    "A1CAP.IS", "ACSEL.IS", "ADEL.IS", "ADESE.IS", "AEFES.IS", "AFYON.IS", "AGESA.IS", "AGHOL.IS", "AGROT.IS", "AHGAZ.IS",
-    "AKBNK.IS", "AKCNS.IS", "AKENR.IS", "AKFGY.IS", "AKFYE.IS", "AKGRT.IS", "AKMGY.IS", "AKSA.IS", "AKSEN.IS", "AKSGY.IS",
-    "ALARK.IS", "ALBRK.IS", "ALCTL.IS", "ALFAS.IS", "ALGYO.IS", "ALKA.IS", "ALKIM.IS", "ALMAD.IS", "ALTNY.IS",
-    "ANELE.IS", "ANGEN.IS", "ANHYT.IS", "ANSGR.IS", "ARASE.IS", "ARCLK.IS", "ARDYZ.IS", "ARENA.IS", "ARSAN.IS", "ASCEG.IS",
-    "ASELS.IS", "ASGYO.IS", "ASTOR.IS", "ASUZU.IS", "ATAKP.IS", "ATATP.IS", "ATEKS.IS", "ATLAS.IS", "ATSYH.IS", "AVGYO.IS",
-    "AYDEM.IS", "AYEN.IS", "AYES.IS", "AYGAZ.IS", "AZTEK.IS", "BAGFS.IS", "BAKAB.IS",
-    "BANVT.IS", "BARMA.IS", "BASGZ.IS", "BAYRK.IS", "BEGYO.IS", "BERA.IS", "BEYAZ.IS", "BFREN.IS", "BIENP.IS",
-    "BIGCH.IS", "BIMAS.IS", "BINBN.IS", "BIOEN.IS", "BIZIM.IS", "BJKAS.IS", "BLCYT.IS", "BMTAS.IS", "BOBET.IS", "BORLS.IS",
-    "BORSK.IS", "BOSSA.IS", "BRISA.IS", "BRKSN.IS", "BRLSM.IS", "BRYAT.IS", "BSOKE.IS",
-    "BTCIM.IS", "BUCIM.IS", "BURCE.IS", "BURVA.IS", "BVSAN.IS", "BYDNR.IS", "CANTE.IS", "CARYE.IS", "CCOLA.IS", "CELHA.IS",
-    "CEMAS.IS", "CEMTS.IS", "CEVNY.IS", "CIMSA.IS", "CLEBI.IS", "CMBTN.IS", "CMENT.IS", "CONSE.IS", "COSMO.IS", "CRDFA.IS",
-    "CRFSA.IS", "CUSAN.IS", "CVKMD.IS", "CWENE.IS", "DAGHL.IS", "DAGI.IS", "DAPGM.IS", "DARDL.IS", "DGATE.IS", "DGGYO.IS",
-    "DGNMO.IS", "DITAS.IS", "DMRGD.IS", "DMSAS.IS", "DNISI.IS", "DOAS.IS", "DOBUR.IS", "DOCO.IS", "DOGUB.IS",
-    "DOHOL.IS", "DOKTA.IS", "DURDO.IS", "DYOBY.IS", "DZGYO.IS", "EBEBK.IS", "ECILC.IS", "ECZYT.IS", "EDATA.IS", "EDIP.IS",
-    "EGEEN.IS", "EGEPO.IS", "EGGUB.IS", "EGPRO.IS", "EGSER.IS", "EKGYO.IS", "EKOS.IS", "EKSUN.IS", "ELITE.IS", "EMKEL.IS",
-    "ENARI.IS", "ENJSA.IS", "ENKAI.IS", "ENTRA.IS", "ERBOS.IS", "EREGL.IS", "ERSU.IS", "ESCAR.IS", "ESCOM.IS", "ESEN.IS",
-    "ETILR.IS", "EUPWR.IS", "EUREN.IS", "EYGYO.IS", "FADE.IS", "FENER.IS", "FLAP.IS", "FMIZP.IS", "FONET.IS", "FORMT.IS",
-    "FROTO.IS", "FZLGY.IS", "GARAN.IS", "GARFA.IS", "GEDIK.IS", "GEDZA.IS", "GENIL.IS", "GENTS.IS", "GEREL.IS",
-    "GESAN.IS", "GIPTA.IS", "GLBMD.IS", "GLCVY.IS", "GLRYH.IS", "GLYHO.IS", "GMTAS.IS", "GOKNR.IS", "GOLTS.IS", "GOODY.IS",
-    "GOZDE.IS", "GRSEL.IS", "GRTRK.IS", "GSDHO.IS", "GSDDE.IS", "GSRAY.IS", "GUBRF.IS", "GWIND.IS", "GZNMI.IS", "HALKB.IS",
-    "HATEK.IS", "HATSN.IS", "HDFGS.IS", "HEDEF.IS", "HEKTS.IS", "HKTM.IS", "HLGYO.IS", "HTTBT.IS", "HUBVC.IS", "HUNER.IS",
-    "HURGZ.IS", "ICBCT.IS", "IDEAS.IS", "IDGYO.IS", "IEYHO.IS", "IHEVA.IS", "IHGZT.IS", "IHLAS.IS", "IHLGM.IS", "IHYAY.IS",
-    "IMASM.IS", "INDES.IS", "INFO.IS", "INGRM.IS", "INTEM.IS", "INVEO.IS", "INVES.IS", "IPEKE.IS",
-    "ISCTR.IS", "ISDMR.IS", "ISFIN.IS", "ISGSY.IS", "ISGYO.IS", "ISMEN.IS", "ISSEN.IS", "ISYAT.IS", "IZENR.IS", "IZFAS.IS",
-    "IZINV.IS", "IZMDC.IS", "JANTS.IS", "KAPLM.IS", "KARYE.IS", "KATMR.IS", "KAYSE.IS", "KCAER.IS", "KCHOL.IS", "KFEIN.IS",
-    "KGYO.IS", "KIMMR.IS", "KLGYO.IS", "KLMSN.IS", "KLNMA.IS", "KLRHO.IS", "KLSER.IS", "KLYAS.IS", "KNFRT.IS", "KOCMT.IS",
-    "KONKA.IS", "KONTR.IS", "KONYA.IS", "KORDS.IS", "KOZAA.IS", "KOZAL.IS", "KPOWR.IS", "KRONT.IS", "KRPLS.IS", "KRSTL.IS",
-    "KRTEK.IS", "KRVGD.IS", "KSTUR.IS", "KTSKR.IS", "KUTPO.IS", "KUVVA.IS", "KUYAS.IS", "KZBGY.IS", "KZGYO.IS", "LIDER.IS",
-    "LIDFA.IS", "LINK.IS", "LMKDC.IS", "LOGAS.IS", "LOGO.IS", "LRSHL.IS", "LUKSK.IS", "MAALT.IS", "MACKO.IS", "MAGEN.IS",
-    "MAKIM.IS", "MAKTK.IS", "MANAS.IS", "MARKA.IS", "MARTI.IS", "MAVI.IS", "MEDTR.IS", "MEGAP.IS", "MEGMT.IS", "MEKAG.IS",
-    "MEPET.IS", "MERCN.IS", "MERKO.IS", "METRO.IS", "METUR.IS", "MGROS.IS", "MHRGY.IS", "MIATK.IS", "MIPAZ.IS", "MMCAS.IS",
-    "MNDRS.IS", "MNDTR.IS", "MOBTL.IS", "MODER.IS", "MPARK.IS", "MRGYO.IS", "MRSHL.IS", "MSGYO.IS", "MTRKS.IS", "MTRYO.IS",
-    "MZHLD.IS", "NATEN.IS", "NETAS.IS", "NIBAS.IS", "NTGAZ.IS", "NTHOL.IS", "NUGYO.IS", "NUHCM.IS", "OBAMS.IS", "OBASE.IS",
-    "ODAS.IS", "ONCSM.IS", "ORCAY.IS", "ORGE.IS", "ORMA.IS", "OTKAR.IS", "OYAKC.IS", "OYAYO.IS", "OYYAT.IS", "OZGYO.IS",
-    "OZKGY.IS", "OZRDN.IS", "OZSUB.IS", "PAGYO.IS", "PAMEL.IS", "PAPIL.IS", "PARSN.IS", "PASEU.IS", "PATEK.IS", "PCILT.IS",
-    "PEGYO.IS", "PEKGY.IS", "PENGD.IS", "PENTA.IS", "PETKM.IS", "PETUN.IS", "PGSUS.IS", "PINSU.IS", "PKART.IS", "PKENT.IS",
-    "PLTUR.IS", "PNLSN.IS", "PNSUT.IS", "POLHO.IS", "POLTK.IS", "PRKAB.IS", "PRKME.IS", "PRZMA.IS", "PSDTC.IS", "PSGYO.IS",
-    "QUAGR.IS", "RALYH.IS", "RAYSG.IS", "REEDR.IS", "RNPOL.IS", "RODRG.IS", "ROYAL.IS", "RTALB.IS",
-    "RUBNS.IS", "RYGYO.IS", "RYSAS.IS", "SAFKR.IS", "SAHOL.IS", "SAMAT.IS", "SANEL.IS", "SANFO.IS", "SANICA.IS", "SARKY.IS",
-    "SASA.IS", "SAYAS.IS", "SDTTR.IS", "SEKFK.IS", "SEKUR.IS", "SELEC.IS", "SELGD.IS", "SELVA.IS", "SEYKM.IS", "SILVR.IS",
-    "SISE.IS", "SKBNK.IS", "SKTAS.IS", "SKYMD.IS", "SMART.IS", "SMRTG.IS", "SNDIK.IS", "SNKPA.IS", "SOKE.IS",
-    "SOKM.IS", "SONME.IS", "SRVGY.IS", "SUMAS.IS", "SUNTK.IS", "SURGY.IS", "SUWEN.IS", "TABGD.IS", "TARKM.IS", "TATEN.IS",
-    "TATGD.IS", "TAVHL.IS", "TCELL.IS", "TDGYO.IS", "TEKTU.IS", "TERA.IS", "TETMT.IS", "TEZOL.IS", "THYAO.IS", "TIRE.IS",
-    "TKFEN.IS", "TKNSA.IS", "TLMAN.IS", "TMPOL.IS", "TMSN.IS", "TOASO.IS", "TRCAS.IS", "TRGYO.IS", "TRILC.IS", "TSKB.IS",
-    "TSPOR.IS", "TTKOM.IS", "TTRAK.IS", "TUCLK.IS", "TUKAS.IS", "TUPRS.IS", "TUREX.IS", "TURGG.IS", "TURSG.IS", "UFUK.IS",
-    "ULAS.IS", "ULKER.IS", "ULLY.IS", "ULUFA.IS", "ULUSE.IS", "ULUUN.IS", "UMPAS.IS", "USAK.IS", "VAKBN.IS",
-    "VAKFN.IS", "VAKKO.IS", "VANGD.IS", "VBTYZ.IS", "VERTU.IS", "VERUS.IS", "VESBE.IS", "VESTL.IS", "VKFYO.IS", "VKGYO.IS",
-    "VKING.IS", "YAPRK.IS", "YAYLA.IS", "YBTAS.IS", "YEOTK.IS", "YESIL.IS", "YGGYO.IS", "YGYO.IS", "YKBNK.IS", "YONGA.IS",
-    "YUNSA.IS", "YYAPI.IS", "YYLGD.IS", "ZEDUR.IS", "ZOREN.IS", "ZRGYO.IS"
-]
+# Hisse listesi (Kısa tutalım ki Yahoo engellemesin, çalışınca büyütürüz)
+bist_tickers = ["THYAO.IS", "EREGL.IS", "ASELS.IS", "TUPRS.IS", "SISE.IS", "AKBNK.IS", "KCHOL.IS", "ARCLK.IS", "FROTO.IS", "BIMAS.IS", "SAHOL.IS", "GARAN.IS", "YKBNK.IS", "ISCTR.IS", "PGSUS.IS"]
 
-def calculate_rs_score(ticker, xu100_data):
-    try:
-        # 2 yıllık veri çekerek indeks hatalarını önlüyoruz
-        data = yf.download(ticker, period="2y", interval="1d", progress=False)['Close']
-        if len(data) < 255:
-            return None
-        
-        # Güncel fiyat ve geçmiş dönem fiyatları
-        p_now = float(data.iloc[-1])
-        p_3m = float(data.iloc[-63])
-        p_6m = float(data.iloc[-126])
-        p_9m = float(data.iloc[-189])
-        p_12m = float(data.iloc[-252])
-        
-        # MarketSmith usulü ağırlıklı performans skoru
-        stock_perf = (p_now/p_3m * 0.4) + (p_now/p_6m * 0.2) + (p_now/p_9m * 0.2) + (p_now/p_12m * 0.2)
-        
-        # Endeks Performansı (Aynı dönemler için)
-        xu_now = float(xu100_data.iloc[-1])
-        xu_perf = (xu_now/float(xu100_data.iloc[-63]) * 0.4) + (xu_now/float(xu100_data.iloc[-126]) * 0.2) + \
-                  (xu_now/float(xu100_data.iloc[-189]) * 0.2) + (xu_now/float(xu100_data.iloc[-252]) * 0.2)
-        
-        # Relatif Skor (Hisse skoru / Endeks skoru)
-        return (stock_perf / xu_perf) * 100
-    except Exception:
-        return None
+def get_data_with_retry(ticker):
+    for i in range(3): # 3 kere deneyecek
+        try:
+            df = yf.download(ticker, period="2y", interval="1d", progress=False, timeout=10)
+            if not df.empty and len(df) > 252:
+                return df['Close']
+        except:
+            time.sleep(2)
+    return None
 
-# XU100 Endeks Verisi
-print("Endeks verileri indiriliyor...")
-xu100 = yf.download("XU100.IS", period="2y", interval="1d", progress=False)['Close']
+print("Endeks verisi alınıyor...")
+xu100 = get_data_with_retry("XU100.IS")
 
 scores = []
-print(f"Toplam {len(bist_tickers)} hisse analiz ediliyor. Lütfen bekleyin...")
-
-# Piyasayı tara
-for ticker in bist_tickers:
-    score = calculate_rs_score(ticker, xu100)
-    if score is not None:
-        scores.append(score)
-    # Yahoo Finance'den engel yememek için çok kısa bekleme
-    time.sleep(0.05)
+if xu100 is not None:
+    print(f"Toplam {len(bist_tickers)} dev hisse analiz ediliyor...")
+    for t in bist_tickers:
+        data = get_data_with_retry(t)
+        if data is not None:
+            try:
+                # Hesaplama
+                p_now = float(data.iloc[-1])
+                p_3m, p_6m, p_9m, p_12m = float(data.iloc[-63]), float(data.iloc[-126]), float(data.iloc[-189]), float(data.iloc[-252])
+                s_perf = (p_now/p_3m*0.4)+(p_now/p_6m*0.2)+(p_now/p_9m*0.2)+(p_now/p_12m*0.2)
+                
+                x_now = float(xu100.iloc[-1])
+                x_perf = (x_now/float(xu100.iloc[-63])*0.4)+(x_now/float(xu100.iloc[-126])*0.2)+(x_now/float(xu100.iloc[-189])*0.2)+(x_now/float(xu100.iloc[-252])*0.2)
+                
+                scores.append((s_perf / x_perf) * 100)
+                print(f"{t} başarıyla hesaplandı.")
+            except: pass
+        time.sleep(1) # Yahoo'yu kızdırmamak için bekleme
 
 if not scores:
-    print("HATA: Hiçbir hisse senedi verisi hesaplanamadı!")
+    print("HATA: Veri hala çekilemiyor. Lütfen 5 dakika sonra tekrar deneyin.")
 else:
-    # Skorları büyükten küçüğe sırala
     scores.sort(reverse=True)
-    
-    # TradingView için yüzde birlik dilimler (Percentile)
-    percentile_ranks = [99, 90, 70, 50, 30, 10, 1]
-    results = np.percentile(scores, percentile_ranks)
-
-    print("\n" + "="*40)
-    print("   BIST RS RATING DEĞERLERİNİZ")
-    print("="*40)
+    results = np.percentile(scores, [99, 90, 70, 50, 30, 10, 1])
+    print("\n--- BIST RS RATING DEĞERLERİNİZ ---")
     labels = ["first2 (99)", "scnd2 (90)", "thrd2 (70)", "frth2 (50)", "ffth2 (30)", "sxth2 (10)", "svth2 (1)"]
-    
-    for label, val in zip(labels, results):
-        # Sonuçları ekrana bas
-        print(f"{label}: {round(float(val), 2)}")
-    print("="*40)
-    print("\nBu rakamları TradingView indikatör ayarlarına sırasıyla girin.")
+    for l, v in zip(labels, results):
+        print(f"{l}: {round(float(v), 2)}")
