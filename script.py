@@ -1,15 +1,9 @@
 import yfinance as yf
 import pandas as pd
 import numpy as np
+import time
 
-# =========================================
-# AYARLAR
-# =========================================
-period = "2y"
-interval = "1d"
-min_days = 252   # En az 1 yıl veri
-
-# Sembol listen (tam listeyi buraya koy)
+# --- GÜNCELLENMİŞ TEMİZ LİSTE ---
 semboller = [
     "A1CAP.IS", "A1YEN.IS", "ACSEL.IS", "ADEL.IS", "ADESE.IS", "ADGYO.IS", "AEFES.IS", "AFYON.IS", "AGESA.IS", "AGHOL.IS",
     "AGROT.IS", "AGYO.IS", "AHGAZ.IS", "AHSGY.IS", "AKBNK.IS", "AKCNS.IS", "AKENR.IS", "AKFGY.IS", "AKFIS.IS", "AKFYE.IS",
@@ -72,95 +66,73 @@ semboller = [
     "ZERGY.IS", "ZGYO.IS", "ZOREN.IS", "ZRGYO.IS"
 ]
 
-
-print(f"Toplam {len(semboller)} hisse indiriliyor...")
-
-# =========================================
-# TOPLU VERİ İNDİRME (HIZLI)
-# =========================================
-data = yf.download(
-    semboller,
-    period=period,
-    interval=interval,
-    auto_adjust=True,
-    progress=True
-)
-
-if data.empty:
-    raise Exception("Veri indirilemedi.")
-
-close = data["Close"]
-
-# =========================================
-# YETERLİ VERİSİ OLANLARI FİLTRELE
-# =========================================
-valid_symbols = [
-    s for s in semboller
-    if s in close.columns and close[s].dropna().shape[0] >= min_days
-]
-
-print(f"{len(valid_symbols)} hisse yeterli veri içeriyor.")
-
-# =========================================
-# WEIGHTED MOMENTUM (IBD STYLE)
-# =========================================
-def weighted_return(series):
+def get_price(ticker):
     try:
-        ret_63  = series.pct_change(63).iloc[-1]
-        ret_126 = series.pct_change(126).iloc[-1]
-        ret_189 = series.pct_change(189).iloc[-1]
-        ret_252 = series.pct_change(252).iloc[-1]
+        # Multi-level index karmaşasını çözmek için auto_adjust=True ekledik
+        data = yf.download(ticker, period="2y", interval="1d", progress=False, auto_adjust=True)
+        if data.empty: return None
+        
+        # Sütun yapısı ne olursa olsun 'Close' veya ilk sütunu al
+        if 'Close' in data.columns:
+            close = data['Close']
+        else:
+            close = data.iloc[:, 0]
+            
+        # Eğer hala DataFrame dönüyorsa (MultiIndex durumu), ilk sütunu Seri yap
+        if isinstance(close, pd.DataFrame):
+            close = close.iloc[:, 0]
+            
+        return close.dropna()
+    except: 
+        return None
 
-        score = (
-            0.4 * ret_63 +
-            0.2 * ret_126 +
-            0.2 * ret_189 +
-            0.2 * ret_252
-        )
+def rs_hesapla(fiyatlar, end_perf_skor):
+    if fiyatlar is None or len(fiyatlar) < 252: return None
+    try:
+        # Son Kapanış / Geçmiş Kapanış oranları
+        skor = (0.4 * (fiyatlar.iloc[-1] / fiyatlar.iloc[-min(63, len(fiyatlar))])) + \
+               (0.2 * (fiyatlar.iloc[-1] / fiyatlar.iloc[-min(126, len(fiyatlar))])) + \
+               (0.2 * (fiyatlar.iloc[-1] / fiyatlar.iloc[-min(189, len(fiyatlar))])) + \
+               (0.2 * (fiyatlar.iloc[-1] / fiyatlar.iloc[-min(252, len(fiyatlar))]))
+        return (float(skor) / end_perf_skor) * 100
+    except: 
+        return None
 
-        return score
-    except:
-        return np.nan
+# Endeks Hazırlığı
+xu100_fiyat = get_price("XU100.IS")
+if xu100_fiyat is not None and len(xu100_fiyat) >= 252:
+    end_perf = (0.4 * (xu100_fiyat.iloc[-1] / xu100_fiyat.iloc[-min(63, len(xu100_fiyat))])) + \
+               (0.2 * (xu100_fiyat.iloc[-1] / xu100_fiyat.iloc[-min(126, len(xu100_fiyat))])) + \
+               (0.2 * (xu100_fiyat.iloc[-1] / xu100_fiyat.iloc[-min(189, len(xu100_fiyat))])) + \
+               (0.2 * (xu100_fiyat.iloc[-1] / xu100_fiyat.iloc[-min(252, len(xu100_fiyat))]))
+    end_perf = float(end_perf)
+else:
+    end_perf = 1.0
 
-# =========================================
-# SKOR HESAPLAMA
-# =========================================
-results = []
+sonuclar = []
+print(f"Toplam {len(semboller)} sembol işleniyor...")
 
-for symbol in valid_symbols:
-    series = close[symbol].dropna()
-    score = weighted_return(series)
+for s in semboller:
+    fiyat_serisi = get_price(s)
+    if fiyat_serisi is not None:
+        rs_val = rs_hesapla(fiyat_serisi, end_perf)
+        if rs_val is not None:
+            sonuclar.append({'Hisse': s.replace(".IS", ""), 'RS_Skoru': round(rs_val, 4)})
+    time.sleep(0.05) # Yahoo hız limiti için
 
-    if not np.isnan(score):
-        results.append({
-            "Hisse": symbol.replace(".IS",""),
-            "Raw_Score": score
-        })
+if sonuclar:
+    df = pd.DataFrame(sonuclar)
+    # RS Rating hesaplama
+    df['RS_Rating'] = (df['RS_Skoru'].rank(pct=True) * 99).round(1)
+    df = df.sort_values(by='RS_Rating', ascending=False)
+    
+    print("\n--- TRADINGVIEW PARAMETRELERİ ---")
+    quantiles = [0.99, 0.90, 0.70, 0.50, 0.30, 0.10, 0.01]
+    for q in quantiles:
+        val = df['RS_Skoru'].quantile(q)
+        print(f"Quantile {q}: {float(val):.4f}")
 
-df = pd.DataFrame(results)
-
-# =========================================
-# PİYASA İÇİ RELATIVE RS RATING (1–99)
-# =========================================
-df["RS_Rating"] = (df["Raw_Score"].rank(pct=True) * 98 + 1).round(0)
-
-# =========================================
-# SIRALAMA
-# =========================================
-df = df.sort_values("RS_Rating", ascending=False).reset_index(drop=True)
-
-# =========================================
-# QUANTILE ANALİZİ (TV karşılaştırma için)
-# =========================================
-print("\n--- RS QUANTILES ---")
-for q in [0.99, 0.90, 0.70, 0.50, 0.30, 0.10, 0.01]:
-    val = df["Raw_Score"].quantile(q)
-    print(f"Quantile {q}: {val:.4f}")
-
-# =========================================
-# CSV ÇIKTI
-# =========================================
-df.to_csv("bist_daily_market_relative_rs.csv", index=False, sep=";")
-
-print("\nAnaliz tamamlandı.")
-print(df.head(20))
+    df.to_csv('bist_rs_siralamasi.csv', index=False, sep=';')
+    print(f"\nAnaliz tamamlandı. {len(df)} hisse başarıyla işlendi.")
+else:
+    print("\nHiçbir sonuç üretilemedi. İnternet bağlantınızı veya yfinance kütüphanesini kontrol edin.")
