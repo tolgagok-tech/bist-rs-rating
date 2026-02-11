@@ -1,131 +1,128 @@
 import yfinance as yf
 import pandas as pd
-from datetime import datetime, timedelta
+import numpy as np
 import time
+from datetime import datetime
 
-# Gönderdiğin dosyadan alınan tam liste (Eksiksiz)
-symbols = [
-    "A1CAP", "A1YEN", "ACSEL", "ADEL", "ADESE", "ADGYO", "AEFES", "AFYON", "AGESA", "AGHOL",
-    "AGROT", "AGYO", "AHGAZ", "AHSGY", "AKBNK", "AKCNS", "AKENR", "AKFGY", "AKFIS", "AKFYE",
-    "AKGRT", "AKHAN", "AKMGY", "AKSA", "AKSEN", "AKSGY", "AKSUE", "AKYHO", "ALARK", "ALBRK",
-    "ALCAR", "ALCTL", "ALFAS", "ALGYO", "ALKA", "ALKIM", "ALKLC", "ALTNY", "ALVES", "ANELE",
-    "ANGEN", "ANHYT", "ANSGR", "ARASE", "ARCLK", "ARDYZ", "ARENA", "ARFYE", "ARMGD", "ARSAN",
-    "ARTMS", "ARZUM", "ASELS", "ASGYO", "ASTOR", "ASUZU", "ATAGY", "ATAKP", "ATATP", "ATEKS",
-    "ATLAS", "ATSYH", "AVGYO", "AVHOL", "AVOD", "AVPGY", "AVTUR", "AYCES", "AYDEM", "AYEN",
-    "AYES", "AYGAZ", "AZTEK", "BAGFS", "BAHKM", "BAKAB", "BALAT", "BALSU", "BANVT", "BARMA",
-    "BASCM", "BASGZ", "BAYRK", "BEGYO", "BERA", "BESLR", "BEYAZ", "BFREN", "BIENY", "BIGCH",
-    "BIGEN", "BIGTK", "BIMAS", "BINBN", "BINHO", "BIOEN", "BIZIM", "BJKAS", "BLCYT", "BLUME",
-    "BMSCH", "BMSTL", "BNTAS", "BOBET", "BORLS", "BORSK", "BOSSA", "BRISA", "BRKSN", "BRKVY",
-    "BRLSM", "BRSAN", "BRYAT", "BSOKE", "BTCIM", "BUCIM", "BULGS", "BURCE", "BURVA", "BVSAN",
-    "BYDNR", "CANTE", "CATES", "CCOLA", "CELHA", "CEMAS", "CEMTS", "CEMZY", "CEOEM", "CGCAM",
-    "CIMSA", "CLEBI", "CMBTN", "CMENT", "CONSE", "COSMO", "CRDFA", "CRFSA", "CUSAN", "CVKMD",
-    "CWENE", "DAGI", "DAPGM", "DARDL", "DCTTR", "DENGE", "DERHL", "DERIM", "DESA", "DESPC",
-    "DEVA", "DGATE", "DGGYO", "DGNMO", "DIRIT", "DITAS", "DMLKT", "DMRGD", "DMSAS", "DNISI",
-    "DOAS", "DOFER", "DOFRB", "DOGUB", "DOHOL", "DOKTA", "DSTKF", "DUNYH", "DURDO", "DURKN",
-    "DYOBY", "DZGYO", "EBEBK", "ECILC", "ECOGR", "ECZYT", "EDATA", "EFOR", "EGEEN", "EGEGY",
-    "EGEPO", "EGGUB", "EGPRO", "EGSER", "EKIZ", "EKOS", "EKSUN", "ELITE", "EMKEL", "EMNIS",
-    "ENDAE", "ENERY", "ENJSA", "ENKAI", "ENSRI", "ENTRA", "ERBOS", "ERCB", "EREGL", "ERSU",
-    "ESCAR", "ESCOM", "ESEN", "ETYAT", "EUHOL", "EUKYO", "EUPWR", "EUREN", "EUYO", "EYGYO",
-    "FADE", "FENER", "FLAP", "FMIZP", "FONET", "FORMT", "FORTE", "FRIGO", "FRMPL", "FROTO",
-    "FZLGY", "GARAN", "GARFA", "GATEG", "GEDIK", "GEDZA", "GENIL", "GENTS", "GEREL", "GESAN",
-    "GIPTA", "GLBMD", "GLCVY", "GLRMK", "GLRYH", "GLYHO", "GMTAS", "GOKNR", "GOLTS", "GOODY",
-    "GOZDE", "GRNYO", "GRSEL", "GRTHO", "GSDDE", "GSDHO", "GSRAY", "GUBRF", "GUNDG", "GWIND",
-    "GZNMI", "HALKB", "HATEK", "HATSN", "HDFGS", "HEDEF", "HEKTS", "HKTM", "HLGYO", "HOROZ",
-    "HRKET", "HTTBT", "HUBVC", "HUNER", "HURGZ", "ICBCT", "ICUGS", "IDGYO", "IEYHO", "IHAAS",
-    "IHEVA", "IHGZT", "IHLAS", "IHLGM", "IHYAY", "IMASM", "INDES", "INFO", "INGRM", "INTEK",
-    "INTEM", "INVEO", "INVES", "ISBIR", "ISDMR", "ISFIN", "ISGSY", "ISGYO", "ISKPL", "ISMEN",
-    "ISSEN", "ISYAT", "IZENR", "IZFAS", "IZINV", "IZMDC", "JANTS", "KAPLM", "KAREL", "KARSN",
-    "KARTN", "KATMR", "KAYSE", "KBORU", "KCAER", "KCHOL", "KENT", "KERVN", "KFEIN", "KGYO",
-    "KIMMR", "KLGYO", "KLKIM", "KLMSN", "KLNMA", "KLRHO", "KLSER", "KLSYN", "KLYPV", "KMPUR",
-    "KNFRT", "KOCMT", "KONKA", "KONTR", "KONYA", "KOPOL", "KORDS", "KOTON", "KRDMA", "KRGYO",
-    "KRONT", "KRPLS", "KRSTL", "KRTEK", "KRVGD", "KSTUR", "KTLEV", "KTSKR", "KUTPO", "KUYAS",
-    "KZBGY", "KZGYO", "LIDER", "LIDFA", "LILAK", "LINK", "LKMNH", "LMKDC", "LOGO", "LRSHO",
-    "LUKSK", "LYDHO", "LYDYE", "MAALT", "MACKO", "MAGEN", "MAKIM", "MAKTK", "MANAS", "MARBL",
-    "MARKA", "MARMR", "MARTI", "MAVI", "MEDTR", "MEGMT", "MEKAG", "MEPET", "MERCN", "MERIT",
-    "MERKO", "METRO", "MEYSU", "MGROS", "MHRGY", "MIATK", "MMCAS", "MNDRS", "MNDTR", "MOBTL",
-    "MOGAN", "MOPAS", "MPARK", "MRGYO", "MRSHL", "MSGYO", "MTRKS", "MTRYO", "NATEN", "NETAS",
-    "NETCD", "NIBAS", "NTGAZ", "NTHOL", "NUGYO", "NUHCM", "OBAMS", "OBASE", "ODAS", "ODINE",
-    "OFSYM", "ONCSM", "ONRYT", "ORCAY", "ORGE", "ORMA", "OSMEN", "OSTIM", "OTKAR", "OYAKC",
-    "OYAYO", "OYLUM", "OYYAT", "OZATD", "OZGYO", "OZKGY", "OZRDN", "OZSUB", "OZYSR", "PAGYO",
-    "PAHOL", "PAMEL", "PAPIL", "PARSN", "PASEU", "PATEK", "PCILT", "PEKGY", "PENGD", "PENTA",
-    "PETKM", "PETUN", "PGSUS", "PINSU", "PKART", "PKENT", "PLTUR", "PNLSN", "PNSUT", "POLHO",
-    "POLTK", "PRDGS", "PRKAB", "PRKME", "PRZMA", "PSDTC", "PSGYO", "QNBFK", "QNBTR", "QUAGR",
-    "RALYH", "RAYSG", "REEDR", "RGYAS", "RNPOL", "RODRG", "RTALB", "RUBNS", "RUZYE", "RYGYO",
-    "RYSAS", "SAFKR", "SAHOL", "SAMAT", "SANEL", "SANFM", "SANKO", "SARKY", "SASA", "SAYAS",
-    "SDTTR", "SEGMN", "SEGYO", "SEKFK", "SEKUR", "SELEC", "SELVA", "SERNT", "SEYKM", "SILVR",
-    "SISE", "SKBNK", "SKTAS", "SKYLP", "SKYMD", "SMART", "SMRTG", "SMRVA", "SNGYO", "SNICA",
-    "SNPAM", "SODSN", "SOKE", "SOKM", "SONME", "SRVGY", "SUMAS", "SUNTK", "SURGY", "SUWEN",
-    "TABGD", "TARKM", "TATEN", "TATGD", "TAVHL", "TBORG", "TCELL", "TCKRC", "TDGYO", "TEHOL",
-    "TEKTU", "TERA", "TEZOL", "TGSAS", "THYAO", "TKFEN", "TKNSA", "TLMAN", "TMPOL", "TMSN",
-    "TNZTP", "TOASO", "TRALT", "TRCAS", "TRENJ", "TRGYO", "TRHOL", "TRILC", "TRMET", "TSGYO",
-    "TSKB", "TSPOR", "TTKOM", "TTRAK", "TUCLK", "TUKAS", "TUPRS", "TUREX", "TURGG", "TURSG",
-    "UCAYM", "UFUK", "ULAS", "ULKER", "ULUFA", "ULUSE", "ULUUN", "UNLU", "USAK", "VAKBN",
-    "VAKFA", "VAKFN", "VAKKO", "VANGD", "VBTYZ", "VERTU", "VERUS", "VESBE", "VESTL", "VKFYO",
-    "VKGYO", "VKING", "VRGYO", "VSNMD", "YAPRK", "YATAS", "YAYLA", "YBTAS", "YEOTK", "YESIL",
-    "YGGYO", "YGYO", "YIGIT", "YKBNK", "YKSLN", "YONGA", "YUNSA", "YYAPI", "YYLGD", "ZEDUR",
-    "ZERGY", "ZGYO", "ZOREN", "ZRGYO"
+# --- TAM LİSTE ---
+semboller = [
+    "A1CAP.IS", "ACSEL.IS", "ADEL.IS", "ADESE.IS", "AEFES.IS", "AFYON.IS", "AGESA.IS", "AGHOL.IS", "AGROT.IS", "AHGAZ.IS",
+    "AKBNK.IS", "AKCNS.IS", "AKENR.IS", "AKFGY.IS", "AKFYE.IS", "AKGRT.IS", "AKMGY.IS", "AKSA.IS", "AKSEN.IS", "AKSGY.IS",
+    "AKSYE.IS", "AKYHO.IS", "ALARK.IS", "ALBRK.IS", "ALCAR.IS", "ALCTL.IS", "ALFAS.IS", "ALGYO.IS", "ALKA.IS", "ALKIM.IS", "ALMAD.IS",
+    "ALTNY.IS", "ALVES.IS", "ANELE.IS", "ANGEN.IS", "ANHYT.IS", "ANSGR.IS", "ARASE.IS", "ARCLK.IS", "ARDYZ.IS", "ARENA.IS",
+    "ARSAN.IS", "ARTMS.IS", "ASCEG.IS", "ASELS.IS", "ASGYO.IS", "ASTOR.IS", "ASUZU.IS", "ATAGY.IS", "ATAKP.IS", "ATATP.IS",
+    "ATEKS.IS", "ATLAS.IS", "ATSYH.IS", "AVGYO.IS", "AVHOL.IS", "AVOD.IS", "AVPGY.IS", "AYDEM.IS", "AYEN.IS", "AYES.IS",
+    "AYGAZ.IS", "AZTEK.IS", "BAGFS.IS", "BAKAB.IS", "BALAT.IS", "BANVT.IS", "BARMA.IS", "BASGZ.IS", "BAYRK.IS", "BEGYO.IS",
+    "BERA.IS", "BEYAZ.IS", "BFREN.IS", "BIENP.IS", "BIGCH.IS", "BIMAS.IS", "BINHO.IS", "BIOEN.IS", "BIZIM.IS", "BJKAS.IS",
+    "BLCYT.IS", "BMSCH.IS", "BMSTL.IS", "BNTAS.IS", "BOBET.IS", "BORLS.IS", "BORSK.IS", "BOSSA.IS", "BRISA.IS", "BRKO.IS",
+    "BRKSN.IS", "BRKVY.IS", "BRLSM.IS", "BRMEN.IS", "BRYAT.IS", "BSOKE.IS", "BTCIM.IS", "BUCIM.IS", "BURCE.IS", "BURVA.IS",
+    "BVSAN.IS", "BYDNR.IS", "CANTE.IS", "CASA.IS", "CATES.IS", "CCOLA.IS", "CELHA.IS", "CEMAS.IS", "CEMTS.IS", "CEVNY.IS",
+    "CIMSA.IS", "CLEBI.IS", "CMBTN.IS", "CMENT.IS", "CONSE.IS", "COSMO.IS", "CRDFA.IS", "CRFSA.IS", "CUSAN.IS", "CVKMD.IS",
+    "CWENE.IS", "DAGHL.IS", "DAGI.IS", "DAPGM.IS", "DARDL.IS", "DGATE.IS", "DGGYO.IS", "DGNMO.IS", "DIRIT.IS", "DITAS.IS",
+    "DMRGD.IS", "DMSAS.IS", "DNISI.IS", "DOAS.IS", "DOBUR.IS", "DOCO.IS", "DOGUB.IS", "DOHOL.IS", "DOKTA.IS", "DURDO.IS",
+    "DYOBY.IS", "DZGYO.IS", "EBEBK.IS", "ECILC.IS", "ECZYT.IS", "EDATA.IS", "EDIP.IS", "EGEEN.IS", "EGEPO.IS", "EGGUB.IS",
+    "EGPRO.IS", "EGSER.IS", "EKGYO.IS", "EKIZ.IS", "EKOS.IS", "EKSUN.IS", "ELITE.IS", "EMKEL.IS", "ENERY.IS", "ENJSA.IS",
+    "ENKAI.IS", "ENTRA.IS", "ERBOS.IS", "EREGL.IS", "ERSU.IS", "ESCOM.IS", "ESEN.IS", "ETILR.IS", "EUPWR.IS", "EUREN.IS",
+    "EYGYO.IS", "FADE.IS", "FENER.IS", "FLAP.IS", "FMIZP.IS", "FONET.IS", "FORMT.IS", "FORTE.IS", "FROTO.IS", "FZLGY.IS",
+    "GARAN.IS", "GARFA.IS", "GEDIK.IS", "GEDZA.IS", "GENTS.IS", "GEREL.IS", "GESAN.IS", "GIPTA.IS", "GLBMD.IS", "GLCVY.IS",
+    "GLRYH.IS", "GLYHO.IS", "GOKNR.IS", "GOLTS.IS", "GOODY.IS", "GOZDE.IS", "GRNYO.IS", "GSDHO.IS", "GSDDE.IS", "GSRAY.IS",
+    "GUBRF.IS", "GWIND.IS", "GZNMI.IS", "HALKB.IS", "HATEK.IS", "HATSN.IS", "HEDEF.IS", "HEKTS.IS", "HKTM.IS", "HLGYO.IS",
+    "HTTBT.IS", "HUBVC.IS", "HUNER.IS", "HURGZ.IS", "ICBCT.IS", "IDEAS.IS", "IDGYO.IS", "IEYHO.IS", "IHEVA.IS", "IHGZT.IS",
+    "IHLAS.IS", "IHLGM.IS", "IHYAY.IS", "IMASM.IS", "INDES.IS", "INFO.IS", "INGRM.IS", "INTEM.IS", "INVEO.IS", "INVES.IS",
+    "IPEKE.IS", "ISATR.IS", "ISBTR.IS", "ISCTR.IS", "ISFIN.IS", "ISGSY.IS", "ISGYO.IS", "ISKPL.IS", "ISMEN.IS", "ISSEN.IS",
+    "ISYAT.IS", "IZENR.IS", "IZFAS.IS", "IZINV.IS", "IZMDC.IS", "JANTS.IS", "KAPLM.IS", "KAREL.IS", "KARSN.IS", "KARTN.IS",
+    "KARYE.IS", "KATMR.IS", "KAYSE.IS", "KBTAS.IS", "KCAER.IS", "KCHOL.IS", "KENT.IS", "KERVT.IS", "KFEIN.IS", "KGYO.IS",
+    "KIMMR.IS", "KLGYO.IS", "KLMSN.IS", "KLNMA.IS", "KLRHO.IS", "KLSYN.IS", "KLYAS.IS", "KMEPU.IS", "KNFRT.IS", "KOCMT.IS",
+    "KONKA.IS", "KONTR.IS", "KONYA.IS", "KOPOL.IS", "KORDS.IS", "KOZAA.IS", "KOZAL.IS", "KPOWR.IS", "KRONT.IS", "KRPLS.IS",
+    "KRSTL.IS", "KRTEK.IS", "KSTUR.IS", "KTSKR.IS", "KUTPO.IS", "KUVVA.IS", "KUYAS.IS", "KZBGY.IS", "KZGYO.IS", "LIDER.IS",
+    "LIDFA.IS", "LINK.IS", "LMKDC.IS", "LOGOS.IS", "LRSHO.IS", "LUKSK.IS", "MAALT.IS", "MACKO.IS", "MAGEN.IS", "MAKIM.IS",
+    "MAKTK.IS", "MANAS.IS", "MARKA.IS", "MARTI.IS", "MAVI.IS", "MEDTR.IS", "MEGAP.IS", "MEGMT.IS", "MEKAG.IS", "MEPET.IS",
+    "MERCN.IS", "MERKO.IS", "METRO.IS", "METUR.IS", "MHRGY.IS", "MIATK.IS", "MIPAZ.IS", "MMCAS.IS", "MNDRS.IS", "MNDTR.IS",
+    "MOBTL.IS", "MOGAN.IS", "MPARK.IS", "MRGYO.IS", "MRSHL.IS", "MSGYO.IS", "MTRKS.IS", "MTRYO.IS", "MZHLD.IS", "NATEN.IS",
+    "NETAS.IS", "NIBAS.IS", "NTGAZ.IS", "NTHOL.IS", "NUGYO.IS", "NUHCM.IS", "OBAMS.IS", "OBASE.IS", "ODAS.IS", "ONCSM.IS",
+    "ORCAY.IS", "ORGE.IS", "ORMA.IS", "OTKAR.IS", "OYAKC.IS", "OYAYO.IS", "OYLUM.IS", "OYYAT.IS", "OZGYO.IS", "OZKGY.IS",
+    "OZRDN.IS", "OZSUB.IS", "PAGYO.IS", "PAMEL.IS", "PAPIL.IS", "PARSN.IS", "PASEU.IS", "PATEK.IS", "PCILT.IS", "PEGYO.IS",
+    "PEKGY.IS", "PENGD.IS", "PENTA.IS", "PETKM.IS", "PETUN.IS", "PGSUS.IS", "PINSU.IS", "PKART.IS", "PKENT.IS", "PLTUR.IS",
+    "PNLSN.IS", "PNSUT.IS", "POLHO.IS", "POLTK.IS", "PRKAB.IS", "PRKME.IS", "PRZMA.IS", "PSDTC.IS", "PSGYO.IS", "QUAGR.IS",
+    "RALYH.IS", "RAYSG.IS", "REEDR.IS", "RNPOL.IS", "RODRG.IS", "RTALB.IS", "RUBNS.IS", "RYGYO.IS", "RYSAS.IS", "SAFKR.IS",
+    "SAHOL.IS", "SAMAT.IS", "SANEL.IS", "SANFO.IS", "SANICA.IS", "SARKY.IS", "SASA.IS", "SAYAS.IS", "SDTTR.IS", "SEKFK.IS",
+    "SEKUR.IS", "SELEC.IS", "SELGD.IS", "SELVA.IS", "SEYKM.IS", "SILVR.IS", "SISE.IS", "SKBNK.IS", "SKTAS.IS", "SKYMD.IS",
+    "SMART.IS", "SMRTG.IS", "SNGYO.IS", "SOKE.IS", "SOKM.IS", "SONME.IS", "SRVGY.IS", "SUMAS.IS", "SUNTK.IS", "SURGY.IS",
+    "SUWEN.IS", "TABGD.IS", "TARKM.IS", "TATEN.IS", "TATGD.IS", "TAVHL.IS", "TCELL.IS", "TDGYO.IS", "TEKTU.IS", "TERA.IS",
+    "TETMT.IS", "TEZOL.IS", "THYAO.IS", "TKFEN.IS", "TKNSA.IS", "TLMAN.IS", "TMPOL.IS", "TMSN.IS", "TOASO.IS", "TRCAS.IS",
+    "TRGYO.IS", "TRILC.IS", "TSKB.IS", "TSPOR.IS", "TTKOM.IS", "TTRAK.IS", "TUCLK.IS", "TUKAS.IS", "TUPRS.IS", "TUREX.IS",
+    "TURSG.IS", "UFUK.IS", "ULAS.IS", "ULKER.IS", "ULUFA.IS", "ULUSE.IS", "ULUUN.IS", "UMPAS.IS", "USAK.IS", "VAKBN.IS",
+    "VAKFN.IS", "VAKKO.IS", "VANGD.IS", "VBTYZ.IS", "VERTU.IS", "VERUS.IS", "VESBE.IS", "VESTL.IS", "VKFYO.IS", "VKGYO.IS",
+    "VKING.IS", "YAPRK.IS", "YAYLA.IS", "YBTAS.IS", "YEOTK.IS", "YESIL.IS", "YGGYO.IS", "YGYO.IS", "YKBNK.IS", "YKSLN.IS",
+    "YONGA.IS", "YUNSA.IS", "YYAPI.IS", "YYLGD.IS", "ZEDUR.IS", "ZOREN.IS", "ZRGYO.IS"
 ]
 
-def calculate_rs_rating():
-    results = []
-    end_date = datetime.now()
-    start_date = end_date - timedelta(days=420)
-
-    print(f"BIST RS Analizi Başlatıldı: {len(symbols)} hisse taranıyor...")
-
-    for i, symbol in enumerate(symbols):
-        try:
-            ticker = f"{symbol}.IS"
-            # Veriyi çekiyoruz
-            df = yf.download(ticker, start=start_date, end=end_date, progress=False, group_by='ticker')
-            
-            if df.empty:
-                continue
-
-            # Multi-index veya normal index kontrolü
-            if isinstance(df.columns, pd.MultiIndex):
-                close_col = (ticker, 'Close')
+def get_price(ticker):
+    try:
+        data = yf.download(ticker, period="2y", interval="1d", progress=False)
+        if data.empty: return None
+        
+        # Kritik Düzeltme: yfinance bazen MultiIndex başlık döndürür.
+        # Eğer header çok katmanlıysa sadece 'Close' katmanını ve ilgili sembolü seç.
+        if isinstance(data.columns, pd.MultiIndex):
+            if 'Close' in data.columns:
+                close = data['Close']
+                # Eğer birden fazla sütun varsa ilkini al (genelde sembol ismidir)
+                if isinstance(close, pd.DataFrame):
+                    close = close.iloc[:, 0]
             else:
-                close_col = 'Close'
-
-            if close_col in df.columns and len(df) >= 252:
-                current_price = float(df[close_col].iloc[-1])
-                old_price = float(df[close_col].iloc[-252])
-                
-                if old_price > 0:
-                    rs_score = current_price / old_price
-                    results.append({
-                        'Sembol': symbol,
-                        'RS_Score': rs_score,
-                        'Fiyat': current_price
-                    })
+                return None
+        else:
+            close = data['Close']
             
-            # Yahoo Finance'i kızdırmamak için her 20 hissede bir kısa mola
-            if i % 20 == 0:
-                time.sleep(1)
+        return close.dropna()
+    except Exception as e:
+        print(f"Veri çekme hatası ({ticker}): {e}")
+        return None
 
-        except Exception as e:
-            print(f"Atlanıyor: {symbol} (Hata: {e})")
-            continue
+def rs_hesapla(fiyatlar, end_perf_skor):
+    if fiyatlar is None or len(fiyatlar) < 252: return None
+    try:
+        # Son Kapanış / Geçmiş Kapanış oranları
+        skor = (0.4 * (fiyatlar.iloc[-1] / fiyatlar.iloc[-min(63, len(fiyatlar))])) + \
+               (0.2 * (fiyatlar.iloc[-1] / fiyatlar.iloc[-min(126, len(fiyatlar))])) + \
+               (0.2 * (fiyatlar.iloc[-1] / fiyatlar.iloc[-min(189, len(fiyatlar))])) + \
+               (0.2 * (fiyatlar.iloc[-1] / fiyatlar.iloc[-min(252, len(fiyatlar))]))
+        return (float(skor) / end_perf_skor) * 100
+    except: return None
 
-    if not results:
-        print("Hata: Veri hesaplanamadı.")
-        return
+# --- Ana İşlem ---
+xu100_fiyat = get_price("XU100.IS")
+if xu100_fiyat is not None and len(xu100_fiyat) >= 252:
+    end_perf = (0.4 * (xu100_fiyat.iloc[-1] / xu100_fiyat.iloc[-min(63, len(xu100_fiyat))])) + \
+               (0.2 * (xu100_fiyat.iloc[-1] / xu100_fiyat.iloc[-min(126, len(xu100_fiyat))])) + \
+               (0.2 * (xu100_fiyat.iloc[-1] / xu100_fiyat.iloc[-min(189, len(xu100_fiyat))])) + \
+               (0.2 * (xu100_fiyat.iloc[-1] / xu100_fiyat.iloc[-min(252, len(xu100_fiyat))]))
+    end_perf = float(end_perf)
+else:
+    end_perf = 1.0
 
-    rs_df = pd.DataFrame(results)
-    rs_df = rs_df.sort_values(by='RS_Score', ascending=False)
-    rs_df['RS_Rating'] = rs_df['RS_Score'].rank(pct=True) * 100
+sonuclar = []
+print(f"Analiz başlıyor: {len(semboller)} sembol...")
+
+for s in semboller:
+    fiyat_serisi = get_price(s)
+    rs_val = rs_hesapla(fiyat_serisi, end_perf)
+    if rs_val is not None:
+        sonuclar.append({'Hisse': s.replace(".IS", ""), 'RS_Skoru': round(rs_val, 4)})
+    # Yahoo banlamasın diye çok kısa bekleme
+    time.sleep(0.05)
+
+if sonuclar:
+    df = pd.DataFrame(sonuclar)
+    # RS Rating: 0-99 arası puanlama
+    df['RS_Rating'] = (df['RS_Skoru'].rank(pct=True) * 99).round(1)
+    df = df.sort_values(by='RS_Rating', ascending=False)
     
-    filename = f"BIST_RS_Raporu_{datetime.now().strftime('%Y-%m-%d')}.xlsx"
-    rs_df.to_excel(filename, index=False)
-    
-    print(f"\nİşlem Başarılı! {len(rs_df)} hisse kaydedildi: {filename}")
-    
-    # TradingView Quantile Değerleri
-    print("\n--- TradingView İçin Güncel Değerler ---")
-    for q in [0.99, 0.95, 0.90, 0.80, 0.70]:
-        val = rs_df['RS_Score'].quantile(q)
-        print(f"RS {int(q*100)}: {val:.4f}")
+    print("\n--- TRADINGVIEW PARAMETRELERİ ---")
+    for q in [0.99, 0.90, 0.70, 0.50, 0.30, 0.10, 0.01]:
+        val = df['RS_Skoru'].quantile(q)
+        print(f"Quantile {q}: {float(val):.4f}")
 
-if __name__ == "__main__":
-    calculate_rs_rating()
+    df.to_csv('bist_rs_siralamasi.csv', index=False, sep=';')
+    print(f"\nİşlem tamam! {len(df)} hisse kaydedildi.")calculate_rs_rating()
