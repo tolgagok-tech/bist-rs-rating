@@ -1,9 +1,16 @@
 import yfinance as yf
 import pandas as pd
 import numpy as np
-import time
 
-# --- GÜNCELLENMİŞ TEMİZ LİSTE ---
+# ==============================
+# AYARLAR
+# ==============================
+period = "2y"
+interval = "1d"
+min_days = 252
+endeks_sembol = "XU100.IS"
+
+# Sembol listeni buraya koy
 semboller = [
     "A1CAP.IS", "A1YEN.IS", "ACSEL.IS", "ADEL.IS", "ADESE.IS", "ADGYO.IS", "AEFES.IS", "AFYON.IS", "AGESA.IS", "AGHOL.IS",
     "AGROT.IS", "AGYO.IS", "AHGAZ.IS", "AHSGY.IS", "AKBNK.IS", "AKCNS.IS", "AKENR.IS", "AKFGY.IS", "AKFIS.IS", "AKFYE.IS",
@@ -66,73 +73,102 @@ semboller = [
     "ZERGY.IS", "ZGYO.IS", "ZOREN.IS", "ZRGYO.IS"
 ]
 
-def get_price(ticker):
+print(f"Toplam {len(semboller)} hisse indiriliyor...")
+
+# ==============================
+# TOPLU VERİ İNDİRME (ÇOK HIZLI)
+# ==============================
+data = yf.download(
+    semboller + [endeks_sembol],
+    period=period,
+    interval=interval,
+    auto_adjust=True,
+    progress=True
+)
+
+if data.empty:
+    raise Exception("Veri indirilemedi.")
+
+# Close fiyatlarını al
+close = data["Close"]
+
+# ==============================
+# YETERLİ VERİSİ OLANLARI FİLTRELE
+# ==============================
+valid_symbols = [
+    s for s in semboller
+    if s in close.columns and close[s].dropna().shape[0] >= min_days
+]
+
+print(f"{len(valid_symbols)} hisse yeterli veri içeriyor.")
+
+# ==============================
+# GETİRİ HESAPLAMA (GERÇEK RETURN)
+# ==============================
+def weighted_return(series):
     try:
-        # Multi-level index karmaşasını çözmek için auto_adjust=True ekledik
-        data = yf.download(ticker, period="2y", interval="1d", progress=False, auto_adjust=True)
-        if data.empty: return None
+        ret_3m = series.pct_change(63).iloc[-1]
+        ret_6m = series.pct_change(126).iloc[-1]
+        ret_9m = series.pct_change(189).iloc[-1]
+        ret_12m = series.pct_change(252).iloc[-1]
         
-        # Sütun yapısı ne olursa olsun 'Close' veya ilk sütunu al
-        if 'Close' in data.columns:
-            close = data['Close']
-        else:
-            close = data.iloc[:, 0]
-            
-        # Eğer hala DataFrame dönüyorsa (MultiIndex durumu), ilk sütunu Seri yap
-        if isinstance(close, pd.DataFrame):
-            close = close.iloc[:, 0]
-            
-        return close.dropna()
-    except: 
-        return None
+        score = (
+            0.4 * ret_3m +
+            0.2 * ret_6m +
+            0.2 * ret_9m +
+            0.2 * ret_12m
+        )
+        return score
+    except:
+        return np.nan
 
-def rs_hesapla(fiyatlar, end_perf_skor):
-    if fiyatlar is None or len(fiyatlar) < 252: return None
-    try:
-        # Son Kapanış / Geçmiş Kapanış oranları
-        skor = (0.4 * (fiyatlar.iloc[-1] / fiyatlar.iloc[-min(63, len(fiyatlar))])) + \
-               (0.2 * (fiyatlar.iloc[-1] / fiyatlar.iloc[-min(126, len(fiyatlar))])) + \
-               (0.2 * (fiyatlar.iloc[-1] / fiyatlar.iloc[-min(189, len(fiyatlar))])) + \
-               (0.2 * (fiyatlar.iloc[-1] / fiyatlar.iloc[-min(252, len(fiyatlar))]))
-        return (float(skor) / end_perf_skor) * 100
-    except: 
-        return None
+# ==============================
+# HİSSE SKORLARI
+# ==============================
+results = []
 
-# Endeks Hazırlığı
-xu100_fiyat = get_price("XU100.IS")
-if xu100_fiyat is not None and len(xu100_fiyat) >= 252:
-    end_perf = (0.4 * (xu100_fiyat.iloc[-1] / xu100_fiyat.iloc[-min(63, len(xu100_fiyat))])) + \
-               (0.2 * (xu100_fiyat.iloc[-1] / xu100_fiyat.iloc[-min(126, len(xu100_fiyat))])) + \
-               (0.2 * (xu100_fiyat.iloc[-1] / xu100_fiyat.iloc[-min(189, len(xu100_fiyat))])) + \
-               (0.2 * (xu100_fiyat.iloc[-1] / xu100_fiyat.iloc[-min(252, len(xu100_fiyat))]))
-    end_perf = float(end_perf)
-else:
-    end_perf = 1.0
+for symbol in valid_symbols:
+    score = weighted_return(close[symbol].dropna())
+    if not np.isnan(score):
+        results.append({
+            "Hisse": symbol.replace(".IS",""),
+            "Raw_Score": score
+        })
 
-sonuclar = []
-print(f"Toplam {len(semboller)} sembol işleniyor...")
+df = pd.DataFrame(results)
 
-for s in semboller:
-    fiyat_serisi = get_price(s)
-    if fiyat_serisi is not None:
-        rs_val = rs_hesapla(fiyat_serisi, end_perf)
-        if rs_val is not None:
-            sonuclar.append({'Hisse': s.replace(".IS", ""), 'RS_Skoru': round(rs_val, 4)})
-    time.sleep(0.05) # Yahoo hız limiti için
-
-if sonuclar:
-    df = pd.DataFrame(sonuclar)
-    # RS Rating hesaplama
-    df['RS_Rating'] = (df['RS_Skoru'].rank(pct=True) * 99).round(1)
-    df = df.sort_values(by='RS_Rating', ascending=False)
+# ==============================
+# ENDEKSLİ RS HESABI
+# ==============================
+if endeks_sembol in close.columns and close[endeks_sembol].dropna().shape[0] >= min_days:
+    endeks_score = weighted_return(close[endeks_sembol].dropna())
     
-    print("\n--- TRADINGVIEW PARAMETRELERİ ---")
-    quantiles = [0.99, 0.90, 0.70, 0.50, 0.30, 0.10, 0.01]
-    for q in quantiles:
-        val = df['RS_Skoru'].quantile(q)
-        print(f"Quantile {q}: {float(val):.4f}")
-
-    df.to_csv('bist_rs_siralamasi.csv', index=False, sep=';')
-    print(f"\nAnaliz tamamlandı. {len(df)} hisse başarıyla işlendi.")
+    df["RS_vs_XU100"] = (1 + df["Raw_Score"]) / (1 + endeks_score)
 else:
-    print("\nHiçbir sonuç üretilemedi. İnternet bağlantınızı veya yfinance kütüphanesini kontrol edin.")
+    df["RS_vs_XU100"] = np.nan
+
+# ==============================
+# ENDEKSSİZ RS RATING (PİYASA İÇİ)
+# ==============================
+df["RS_Rating"] = (df["Raw_Score"].rank(pct=True) * 98 + 1).round(0)
+
+# ==============================
+# SIRALAMA
+# ==============================
+df = df.sort_values("RS_Rating", ascending=False)
+
+# ==============================
+# QUANTILE BİLGİSİ
+# ==============================
+print("\n--- TRADINGVIEW PARAMETRELERİ ---")
+for q in [0.99, 0.90, 0.70, 0.50, 0.30, 0.10, 0.01]:
+    val = df["Raw_Score"].quantile(q)
+    print(f"Quantile {q}: {val:.4f}")
+
+# ==============================
+# DOSYA ÇIKTISI
+# ==============================
+df.to_csv("bist_profesyonel_rs.csv", index=False, sep=";")
+
+print("\nAnaliz tamamlandı.")
+print(df.head(15))
