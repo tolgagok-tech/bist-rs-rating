@@ -2,15 +2,14 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 
-# ==============================
+# =====================================
 # AYARLAR
-# ==============================
-period = "2y"
-interval = "1d"
-min_days = 252
-endeks_sembol = "XU100.IS"
+# =====================================
+period = "3y"          # Weekly 52 hafta için 3 yıl güvenli
+interval = "1wk"
+min_weeks = 52
 
-# Sembol listeni buraya koy
+# Tüm BIST listen buraya
 semboller = [
     "A1CAP.IS", "A1YEN.IS", "ACSEL.IS", "ADEL.IS", "ADESE.IS", "ADGYO.IS", "AEFES.IS", "AFYON.IS", "AGESA.IS", "AGHOL.IS",
     "AGROT.IS", "AGYO.IS", "AHGAZ.IS", "AHSGY.IS", "AKBNK.IS", "AKCNS.IS", "AKENR.IS", "AKFGY.IS", "AKFIS.IS", "AKFYE.IS",
@@ -73,13 +72,14 @@ semboller = [
     "ZERGY.IS", "ZGYO.IS", "ZOREN.IS", "ZRGYO.IS"
 ]
 
-print(f"Toplam {len(semboller)} hisse indiriliyor...")
 
-# ==============================
-# TOPLU VERİ İNDİRME (ÇOK HIZLI)
-# ==============================
+print(f"Toplam {len(semboller)} hisse indiriliyor (Weekly)...")
+
+# =====================================
+# TOPLU WEEKLY VERİ
+# =====================================
 data = yf.download(
-    semboller + [endeks_sembol],
+    semboller,
     period=period,
     interval=interval,
     auto_adjust=True,
@@ -89,46 +89,48 @@ data = yf.download(
 if data.empty:
     raise Exception("Veri indirilemedi.")
 
-# Close fiyatlarını al
 close = data["Close"]
 
-# ==============================
-# YETERLİ VERİSİ OLANLARI FİLTRELE
-# ==============================
+# =====================================
+# YETERLİ HAFTASI OLANLAR
+# =====================================
 valid_symbols = [
     s for s in semboller
-    if s in close.columns and close[s].dropna().shape[0] >= min_days
+    if s in close.columns and close[s].dropna().shape[0] >= min_weeks
 ]
 
-print(f"{len(valid_symbols)} hisse yeterli veri içeriyor.")
+print(f"{len(valid_symbols)} hisse yeterli weekly veri içeriyor.")
 
-# ==============================
-# GETİRİ HESAPLAMA (GERÇEK RETURN)
-# ==============================
-def weighted_return(series):
+# =====================================
+# IBD WEEKLY WEIGHTED RETURN
+# =====================================
+def ibd_weighted_return(series):
     try:
-        ret_3m = series.pct_change(63).iloc[-1]
-        ret_6m = series.pct_change(126).iloc[-1]
-        ret_9m = series.pct_change(189).iloc[-1]
-        ret_12m = series.pct_change(252).iloc[-1]
-        
+        ret_13 = series.pct_change(13).iloc[-1]
+        ret_26 = series.pct_change(26).iloc[-1]
+        ret_39 = series.pct_change(39).iloc[-1]
+        ret_52 = series.pct_change(52).iloc[-1]
+
         score = (
-            0.4 * ret_3m +
-            0.2 * ret_6m +
-            0.2 * ret_9m +
-            0.2 * ret_12m
+            0.4 * ret_13 +
+            0.2 * ret_26 +
+            0.2 * ret_39 +
+            0.2 * ret_52
         )
+
         return score
     except:
         return np.nan
 
-# ==============================
-# HİSSE SKORLARI
-# ==============================
+# =====================================
+# SKOR HESAPLAMA
+# =====================================
 results = []
 
 for symbol in valid_symbols:
-    score = weighted_return(close[symbol].dropna())
+    series = close[symbol].dropna()
+    score = ibd_weighted_return(series)
+
     if not np.isnan(score):
         results.append({
             "Hisse": symbol.replace(".IS",""),
@@ -137,38 +139,25 @@ for symbol in valid_symbols:
 
 df = pd.DataFrame(results)
 
-# ==============================
-# ENDEKSLİ RS HESABI
-# ==============================
-if endeks_sembol in close.columns and close[endeks_sembol].dropna().shape[0] >= min_days:
-    endeks_score = weighted_return(close[endeks_sembol].dropna())
-    
-    df["RS_vs_XU100"] = (1 + df["Raw_Score"]) / (1 + endeks_score)
-else:
-    df["RS_vs_XU100"] = np.nan
-
-# ==============================
-# ENDEKSSİZ RS RATING (PİYASA İÇİ)
-# ==============================
+# =====================================
+# IBD RS RATING (1-99)
+# =====================================
 df["RS_Rating"] = (df["Raw_Score"].rank(pct=True) * 98 + 1).round(0)
 
-# ==============================
-# SIRALAMA
-# ==============================
 df = df.sort_values("RS_Rating", ascending=False)
 
-# ==============================
-# QUANTILE BİLGİSİ
-# ==============================
-print("\n--- TRADINGVIEW PARAMETRELERİ ---")
+# =====================================
+# TRADINGVIEW BENCHMARK İÇİN QUANTILE
+# =====================================
+print("\n--- WEEKLY RS QUANTILES ---")
 for q in [0.99, 0.90, 0.70, 0.50, 0.30, 0.10, 0.01]:
     val = df["Raw_Score"].quantile(q)
     print(f"Quantile {q}: {val:.4f}")
 
-# ==============================
-# DOSYA ÇIKTISI
-# ==============================
-df.to_csv("bist_profesyonel_rs.csv", index=False, sep=";")
+# =====================================
+# DOSYA
+# =====================================
+df.to_csv("bist_weekly_ibd_rs.csv", index=False, sep=";")
 
-print("\nAnaliz tamamlandı.")
+print("\nIBD-Style Weekly RS Analizi Tamamlandı.")
 print(df.head(15))
