@@ -1,9 +1,8 @@
 import yfinance as yf
 import pandas as pd
-import numpy as np
-import time
+from datetime import datetime, timedelta
 
-# --- TAM LİSTE ---
+# Kullanıcıdan gelen güncel sembol listesi 
 symbols = [
     "A1CAP", "A1YEN", "ACSEL", "ADEL", "ADESE", "ADGYO", "AEFES", "AFYON", "AGESA", "AGHOL", 
     "AGROT", "AGYO", "AHGAZ", "AHSGY", "AKBNK", "AKCNS", "AKENR", "AKFGY", "AKFIS", "AKFYE", 
@@ -65,59 +64,52 @@ symbols = [
     "YGGYO", "YGYO", "YIGIT", "YKBNK", "YKSLN", "YONGA", "YUNSA", "YYAPI", "YYLGD", "ZEDUR", 
     "ZERGY", "ZGYO", "ZOREN", "ZRGYO"
 ]
-def get_price(ticker):
-    try:
-        data = yf.download(ticker, period="2y", interval="1d", progress=False)
-        if data.empty: return None
-        # Sadece Kapanış fiyatını al ve tekil bir diziye (Series) çevir
-        close = data['Close']
-        if isinstance(close, pd.DataFrame):
-            close = close.iloc[:, 0]
-        return close.dropna()
-    except: return None
 
-def rs_hesapla(fiyatlar, end_perf_skor):
-    if fiyatlar is None or len(fiyatlar) < 252: return None
-    try:
-        # Son Kapanış / Geçmiş Kapanış oranları
-        skor = (0.4 * (fiyatlar.iloc[-1] / fiyatlar.iloc[-min(63, len(fiyatlar))])) + \
-               (0.2 * (fiyatlar.iloc[-1] / fiyatlar.iloc[-min(126, len(fiyatlar))])) + \
-               (0.2 * (fiyatlar.iloc[-1] / fiyatlar.iloc[-min(189, len(fiyatlar))])) + \
-               (0.2 * (fiyatlar.iloc[-1] / fiyatlar.iloc[-min(252, len(fiyatlar))]))
-        return (float(skor) / end_perf_skor) * 100
-    except: return None
+def calculate_rs_rating():
+    results = []
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=400) # 252 işlem günü için yeterli veri aralığı
 
-# Endeks Hazırlığı
-xu100_fiyat = get_price("XU100.IS")
-if xu100_fiyat is not None and len(xu100_fiyat) >= 63:
-    end_perf = (0.4 * (xu100_fiyat.iloc[-1] / xu100_fiyat.iloc[-min(63, len(xu100_fiyat))])) + \
-               (0.2 * (xu100_fiyat.iloc[-1] / xu100_fiyat.iloc[-min(126, len(xu100_fiyat))])) + \
-               (0.2 * (xu100_fiyat.iloc[-1] / xu100_fiyat.iloc[-min(189, len(xu100_fiyat))])) + \
-               (0.2 * (xu100_fiyat.iloc[-1] / xu100_fiyat.iloc[-min(252, len(xu100_fiyat))]))
-    end_perf = float(end_perf)
-else:
-    end_perf = 1.0
+    print(f"{len(symbols)} hisse senedi analiz ediliyor...")
 
-sonuclar = []
-print(f"{len(semboller)} sembol analiz ediliyor...")
+    for symbol in symbols:
+        try:
+            # Yahoo Finance için sonuna .IS ekliyoruz
+            ticker = symbol + ".IS"
+            df = yf.download(ticker, start=start_date, end=end_date, progress=False)
+            
+            if len(df) >= 252:
+                # RS Skoru Formülü: Son fiyat / 252 gün önceki fiyat
+                rs_score = df['Close'].iloc[-1] / df['Close'].iloc[-252]
+                results.append({'Sembol': symbol, 'RS_Score': float(rs_score)})
+            else:
+                print(f"Eksik veri: {symbol} (Yetersiz işlem günü)")
+        except Exception as e:
+            print(f"Hata: {symbol} verisi çekilemedi. {e}")
 
-for s in semboller:
-    fiyat_serisi = get_price(s)
-    rs_val = rs_hesapla(fiyat_serisi, end_perf)
-    if rs_val is not None:
-        sonuclar.append({'Hisse': s.replace(".IS", ""), 'RS_Skoru': round(rs_val, 4)})
-    time.sleep(0.02)
+    if not results:
+        print("Hiç veri hesaplanamadı.")
+        return
 
-if sonuclar:
-    df = pd.DataFrame(sonuclar)
-    df['RS_Rating'] = (df['RS_Skoru'].rank(pct=True) * 99).round(1)
-    df = df.sort_values(by='RS_Rating', ascending=False)
+    # DataFrame oluşturma ve sıralama
+    rs_df = pd.DataFrame(results)
+    rs_df = rs_df.sort_values(by='RS_Score', ascending=False)
+
+    # RS Rating hesaplama (Yüzdelik dilim)
+    rs_df['RS_Rating'] = rs_df['RS_Score'].rank(pct=True) * 100
     
-    # Quantile değerleri (TradingView Replay Mode için)
-    print("\n--- TRADINGVIEW PARAMETRELERİ ---")
-    for q in [0.99, 0.90, 0.70, 0.50, 0.30, 0.10, 0.01]:
-        val = df['RS_Skoru'].quantile(q)
-        print(f"Quantile {q}: {float(val):.4f}")
+    # Excel'e kaydetme
+    filename = f"BIST_RS_Rating_{datetime.now().strftime('%Y-%m-%d')}.xlsx"
+    rs_df.to_excel(filename, index=False)
+    print(f"Analiz tamamlandı! Dosya kaydedildi: {filename}")
+    
+    # TradingView için eşik değerlerini ekrana yazdır (Quantiles)
+    print("\n--- TradingView İndikatör Ayarları İçin Eşik Değerleri ---")
+    print(f"99. Yüzdelik (RS 99): {rs_df['RS_Score'].quantile(0.99):.4f}")
+    print(f"95. Yüzdelik (RS 95): {rs_df['RS_Score'].quantile(0.95):.4f}")
+    print(f"90. Yüzdelik (RS 90): {rs_df['RS_Score'].quantile(0.90):.4f}")
+    print(f"80. Yüzdelik (RS 80): {rs_df['RS_Score'].quantile(0.80):.4f}")
+    print(f"70. Yüzdelik (RS 70): {rs_df['RS_Score'].quantile(0.70):.4f}")
 
-    df.to_csv('bist_rs_siralamasi.csv', index=False, sep=';')
-    print("\nAnaliz tamamlandı. Excel oluşturuldu.")
+if __name__ == "__main__":
+    calculate_rs_rating()
