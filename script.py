@@ -2,9 +2,8 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import time
-from datetime import datetime
 
-# --- TAM LİSTE ---
+# --- GÜNCELLENMİŞ TEMİZ LİSTE ---
 semboller = [
     "A1CAP.IS", "ACSEL.IS", "ADEL.IS", "ADESE.IS", "AEFES.IS", "AFYON.IS", "AGESA.IS", "AGHOL.IS", "AGROT.IS", "AHGAZ.IS",
     "AKBNK.IS", "AKCNS.IS", "AKENR.IS", "AKFGY.IS", "AKFYE.IS", "AKGRT.IS", "AKMGY.IS", "AKSA.IS", "AKSEN.IS", "AKSGY.IS",
@@ -50,7 +49,7 @@ semboller = [
     "SMART.IS", "SMRTG.IS", "SNGYO.IS", "SOKE.IS", "SOKM.IS", "SONME.IS", "SRVGY.IS", "SUMAS.IS", "SUNTK.IS", "SURGY.IS",
     "SUWEN.IS", "TABGD.IS", "TARKM.IS", "TATEN.IS", "TATGD.IS", "TAVHL.IS", "TCELL.IS", "TDGYO.IS", "TEKTU.IS", "TERA.IS",
     "TETMT.IS", "TEZOL.IS", "THYAO.IS", "TKFEN.IS", "TKNSA.IS", "TLMAN.IS", "TMPOL.IS", "TMSN.IS", "TOASO.IS", "TRCAS.IS",
-    "TRGYO.IS", "TRILC.IS", "TSKB.IS", "TSPOR.IS", "TTKOM.IS", "TTRAK.IS", "TUCLK.IS", "TUKAS.IS", "TUPRS.IS", "TUREX.IS",
+    "TRGYO.IS", "TRILC.IS", "TSGYO.IS", "TSKB.IS", "TSPOR.IS", "TTKOM.IS", "TTRAK.IS", "TUCLK.IS", "TUKAS.IS", "TUPRS.IS", "TUREX.IS",
     "TURSG.IS", "UFUK.IS", "ULAS.IS", "ULKER.IS", "ULUFA.IS", "ULUSE.IS", "ULUUN.IS", "UMPAS.IS", "USAK.IS", "VAKBN.IS",
     "VAKFN.IS", "VAKKO.IS", "VANGD.IS", "VBTYZ.IS", "VERTU.IS", "VERUS.IS", "VESBE.IS", "VESTL.IS", "VKFYO.IS", "VKGYO.IS",
     "VKING.IS", "YAPRK.IS", "YAYLA.IS", "YBTAS.IS", "YEOTK.IS", "YESIL.IS", "YGGYO.IS", "YGYO.IS", "YKBNK.IS", "YKSLN.IS",
@@ -59,25 +58,22 @@ semboller = [
 
 def get_price(ticker):
     try:
-        data = yf.download(ticker, period="2y", interval="1d", progress=False)
+        # Multi-level index karmaşasını çözmek için auto_adjust=True ekledik
+        data = yf.download(ticker, period="2y", interval="1d", progress=False, auto_adjust=True)
         if data.empty: return None
         
-        # Kritik Düzeltme: yfinance bazen MultiIndex başlık döndürür.
-        # Eğer header çok katmanlıysa sadece 'Close' katmanını ve ilgili sembolü seç.
-        if isinstance(data.columns, pd.MultiIndex):
-            if 'Close' in data.columns:
-                close = data['Close']
-                # Eğer birden fazla sütun varsa ilkini al (genelde sembol ismidir)
-                if isinstance(close, pd.DataFrame):
-                    close = close.iloc[:, 0]
-            else:
-                return None
-        else:
+        # Sütun yapısı ne olursa olsun 'Close' veya ilk sütunu al
+        if 'Close' in data.columns:
             close = data['Close']
+        else:
+            close = data.iloc[:, 0]
+            
+        # Eğer hala DataFrame dönüyorsa (MultiIndex durumu), ilk sütunu Seri yap
+        if isinstance(close, pd.DataFrame):
+            close = close.iloc[:, 0]
             
         return close.dropna()
-    except Exception as e:
-        print(f"Veri çekme hatası ({ticker}): {e}")
+    except: 
         return None
 
 def rs_hesapla(fiyatlar, end_perf_skor):
@@ -89,9 +85,10 @@ def rs_hesapla(fiyatlar, end_perf_skor):
                (0.2 * (fiyatlar.iloc[-1] / fiyatlar.iloc[-min(189, len(fiyatlar))])) + \
                (0.2 * (fiyatlar.iloc[-1] / fiyatlar.iloc[-min(252, len(fiyatlar))]))
         return (float(skor) / end_perf_skor) * 100
-    except: return None
+    except: 
+        return None
 
-# --- Ana İşlem ---
+# Endeks Hazırlığı
 xu100_fiyat = get_price("XU100.IS")
 if xu100_fiyat is not None and len(xu100_fiyat) >= 252:
     end_perf = (0.4 * (xu100_fiyat.iloc[-1] / xu100_fiyat.iloc[-min(63, len(xu100_fiyat))])) + \
@@ -103,26 +100,29 @@ else:
     end_perf = 1.0
 
 sonuclar = []
-print(f"Analiz başlıyor: {len(semboller)} sembol...")
+print(f"Toplam {len(semboller)} sembol işleniyor...")
 
 for s in semboller:
     fiyat_serisi = get_price(s)
-    rs_val = rs_hesapla(fiyat_serisi, end_perf)
-    if rs_val is not None:
-        sonuclar.append({'Hisse': s.replace(".IS", ""), 'RS_Skoru': round(rs_val, 4)})
-    # Yahoo banlamasın diye çok kısa bekleme
-    time.sleep(0.05)
+    if fiyat_serisi is not None:
+        rs_val = rs_hesapla(fiyat_serisi, end_perf)
+        if rs_val is not None:
+            sonuclar.append({'Hisse': s.replace(".IS", ""), 'RS_Skoru': round(rs_val, 4)})
+    time.sleep(0.05) # Yahoo hız limiti için
 
 if sonuclar:
     df = pd.DataFrame(sonuclar)
-    # RS Rating: 0-99 arası puanlama
+    # RS Rating hesaplama
     df['RS_Rating'] = (df['RS_Skoru'].rank(pct=True) * 99).round(1)
     df = df.sort_values(by='RS_Rating', ascending=False)
     
     print("\n--- TRADINGVIEW PARAMETRELERİ ---")
-    for q in [0.99, 0.90, 0.70, 0.50, 0.30, 0.10, 0.01]:
+    quantiles = [0.99, 0.90, 0.70, 0.50, 0.30, 0.10, 0.01]
+    for q in quantiles:
         val = df['RS_Skoru'].quantile(q)
         print(f"Quantile {q}: {float(val):.4f}")
 
     df.to_csv('bist_rs_siralamasi.csv', index=False, sep=';')
-    print(f"\nİşlem tamam! {len(df)} hisse kaydedildi.")calculate_rs_rating()
+    print(f"\nAnaliz tamamlandı. {len(df)} hisse başarıyla işlendi.")
+else:
+    print("\nHiçbir sonuç üretilemedi. İnternet bağlantınızı veya yfinance kütüphanesini kontrol edin.")
