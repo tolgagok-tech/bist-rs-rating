@@ -2,7 +2,7 @@ import yfinance as yf
 import pandas as pd
 from datetime import datetime, timedelta
 
-# Gönderdiğiniz CSV dosyasındaki güncel sembol listesi
+# CSV dosyanızdaki tüm güncel semboller
 symbols = [
     "A1CAP", "ACSEL", "ADEL", "ADESE", "ADGYO", "AEFES", "AFYON", "AGESA", "AGHOL", "AGROT",
     "AGYO", "AHGAZ", "AHSGY", "AKBNK", "AKCNS", "AKENR", "AKFGY", "AKFIS", "AKFYE", "AKGRT",
@@ -65,57 +65,44 @@ symbols = [
 def calculate_rs_rating():
     results = []
     end_date = datetime.now()
-    # 252 işlem günü için yeterli geçmiş veriyi garanti altına alıyoruz
-    start_date = end_date - timedelta(days=400)
+    start_date = end_date - timedelta(days=420) # Daha güvenli veri aralığı
 
-    print(f"{len(symbols)} hisse senedi işleniyor...")
+    print(f"Toplam {len(symbols)} hisse analiz ediliyor...")
 
     for symbol in symbols:
         try:
-            # Sembolün sonuna .IS ekleniyor (Yahoo Finance formatı)
-            ticker_symbol = f"{symbol}.IS"
-            df = yf.download(ticker_symbol, start=start_date, end=end_date, progress=False)
+            ticker = f"{symbol}.IS"
+            df = yf.download(ticker, start=start_date, end=end_date, progress=False)
             
-            # 252 işlem günü verisi var mı kontrolü
-            if len(df) >= 252:
-                # RS Skoru Hesaplama (Bugünkü kapanış / 252 gün önceki kapanış)
+            # Minimum 252 işlem günü verisi kontrolü
+            if not df.empty and len(df) >= 252:
+                # RS Skoru Formülü: Bugünkü Fiyat / 252 İşlem Günü Önceki Fiyat 
                 rs_score = df['Close'].iloc[-1] / df['Close'].iloc[-252]
-                results.append({
-                    'Sembol': symbol, 
-                    'RS_Score': float(rs_score),
-                    'Son_Fiyat': float(df['Close'].iloc[-1])
-                })
+                results.append({'Sembol': symbol, 'RS_Score': float(rs_score)})
             else:
-                # Yeni halka arzlar için veri yetersizliği uyarısı
-                pass 
+                # Veri eksikse (Yeni halka arz vb.) sessizce geç
+                continue
         except Exception:
-            # Hata veren sembolleri sessizce atlıyoruz
+            # Bağlantı hatalarında devam et
             continue
 
-    if not results:
-        print("Hesaplanacak veri bulunamadı.")
-        return
-
-    # RS Skoruna göre sıralama
-    rs_df = pd.DataFrame(results)
-    rs_df = rs_df.sort_values(by='RS_Score', ascending=False)
-
-    # RS Rating (Yüzdelik dilim) hesaplama
-    rs_df['RS_Rating'] = rs_df['RS_Score'].rank(pct=True) * 100
-    
-    # Excel dosyasına yazma
-    output_filename = f"BIST_RS_Rating_{datetime.now().strftime('%Y-%m-%d')}.xlsx"
-    rs_df.to_excel(output_filename, index=False)
-    
-    print("-" * 30)
-    print(f"Analiz tamamlandı. Dosya oluşturuldu: {output_filename}")
-    
-    # TradingView için quantile (eşik) değerlerini yazdır
-    print("\n--- TradingView İndikatör Ayarları İçin Değerler ---")
-    thresholds = [0.99, 0.95, 0.90, 0.80, 0.70]
-    for q in thresholds:
-        val = rs_df['RS_Score'].quantile(q)
-        print(f"RS {int(q*100)} Değeri: {val:.4f}")
+    if results:
+        rs_df = pd.DataFrame(results)
+        # RS Skoruna göre büyükten küçüğe sırala 
+        rs_df = rs_df.sort_values(by='RS_Score', ascending=False)
+        # Yüzdelik RS Rating hesapla 
+        rs_df['RS_Rating'] = rs_df['RS_Score'].rank(pct=True) * 100
+        
+        filename = f"BIST_RS_Rating_{datetime.now().strftime('%Y-%m-%d')}.xlsx"
+        rs_df.to_excel(filename, index=False)
+        print(f"Dosya başarıyla kaydedildi: {filename}")
+        
+        # TradingView için eşik değerlerini yazdır 
+        print("\n--- TradingView Quantile Değerleri ---")
+        for q in [0.99, 0.95, 0.90, 0.80, 0.70]:
+            print(f"RS {int(q*100)} Eşiği: {rs_df['RS_Score'].quantile(q):.4f}")
+    else:
+        print("Hesaplanacak yeterli veri bulunamadı.")
 
 if __name__ == "__main__":
     calculate_rs_rating()
