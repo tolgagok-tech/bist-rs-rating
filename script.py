@@ -1,10 +1,10 @@
-import pandas as pd
 import yfinance as yf
-from datetime import datetime, timedelta
+import pandas as pd
 import numpy as np
+import time
 
-# 1. GÜNCELLENMİŞ TEMİZ LİSTE (Doğrudan kodun içine gömüldü)
-semboller_is = [
+# --- GÜNCELLENMİŞ TEMİZ LİSTE ---
+semboller = [
     "A1CAP.IS", "A1YEN.IS", "ACSEL.IS", "ADEL.IS", "ADESE.IS", "ADGYO.IS", "AEFES.IS", "AFYON.IS", "AGESA.IS", "AGHOL.IS",
     "AGROT.IS", "AGYO.IS", "AHGAZ.IS", "AHSGY.IS", "AKBNK.IS", "AKCNS.IS", "AKENR.IS", "AKFGY.IS", "AKFIS.IS", "AKFYE.IS",
     "AKGRT.IS", "AKHAN.IS", "AKMGY.IS", "AKSA.IS", "AKSEN.IS", "AKSGY.IS", "AKSUE.IS", "AKYHO.IS", "ALARK.IS", "ALBRK.IS",
@@ -66,73 +66,73 @@ semboller_is = [
     "ZERGY.IS", "ZGYO.IS", "ZOREN.IS", "ZRGYO.IS"
 ]
 
-endeks_sembol = "XU100.IS"
-
-# 2. TARİHLERİ AYARLA
-bitis_tarihi = datetime.now()
-baslangic_tarihi = bitis_tarihi - timedelta(days=365 + 30) 
-
-# 3. VERİLERİ ÇEK
-print(f"{len(semboller_is)} hisse için veriler çekiliyor...")
-data = yf.download(semboller_is + [endeks_sembol], start=baslangic_tarihi, end=bitis_tarihi, interval='1d')['Close']
-
-# 4. RS SKORU HESAPLAMA (IBD Standardı)
-def calculate_rs_score(series):
-    series = series.dropna()
-    if len(series) < 252: return np.nan
-    perf_63 = series.iloc[-1] / series.iloc[-63]
-    perf_126 = series.iloc[-1] / series.iloc[-126]
-    perf_189 = series.iloc[-1] / series.iloc[-189]
-    perf_252 = series.iloc[-1] / series.iloc[-252]
-    return (perf_63 * 0.4) + (perf_126 * 0.2) + (perf_189 * 0.2) + (perf_252 * 0.2)
-
-# 5. TRADINGVIEW PARAMETRELERİNE GÖRE RATING (Senin verdiğin Quantile değerleri)
-def calculate_tradingview_rating(score):
-    # TradingView indikatörüne girdiğin o kritik değerler
-    q99 = 397.6892
-    q90 = 137.3098
-    q70 = 97.7928
-    q50 = 85.9913
-    q30 = 75.7478
-    q10 = 63.9031
-    q01 = 39.2182
-
-    if pd.isna(score): return 0.0
-    
-    if score >= q99: return 99.0
-    elif score >= q90: return round(90 + (score - q90) / (q99 - q90) * 9, 1)
-    elif score >= q70: return round(70 + (score - q70) / (q90 - q70) * 20, 1)
-    elif score >= q50: return round(50 + (score - q50) / (q70 - q50) * 20, 1)
-    elif score >= q30: return round(30 + (score - q30) / (q50 - q30) * 20, 1)
-    elif score >= q10: return round(10 + (score - q10) / (q30 - q10) * 20, 1)
-    elif score >= q01: return round(1 + (score - q01) / (q10 - q01) * 9, 1)
-    else: return 1.0
-
-# 6. HESAPLAMA DÖNGÜSÜ
-sonuclar = []
-endeks_serisi = data[endeks_sembol]
-endeks_rs_raw = calculate_rs_score(endeks_serisi)
-
-for s_is in semboller_is:
-    if s_is in data.columns:
-        hisse_serisi = data[s_is]
-        hisse_rs_raw = calculate_rs_score(hisse_serisi)
+def get_price(ticker):
+    try:
+        # Multi-level index karmaşasını çözmek için auto_adjust=True ekledik
+        data = yf.download(ticker, period="2y", interval="1d", progress=False, auto_adjust=True)
+        if data.empty: return None
         
-        if not pd.isna(hisse_rs_raw) and not pd.isna(endeks_rs_raw):
-            # Endeksle oranlayıp 100 ile çarparak normalize ediyoruz
-            rs_score = (hisse_rs_raw / endeks_rs_raw) * 100
-            rating = calculate_tradingview_rating(rs_score)
+        # Sütun yapısı ne olursa olsun 'Close' veya ilk sütunu al
+        if 'Close' in data.columns:
+            close = data['Close']
+        else:
+            close = data.iloc[:, 0]
             
-            sonuclar.append({
-                'Hisse': s_is.replace(".IS", ""),
-                'RS_Skoru': round(rs_score, 2),
-                'RS_Rating': rating
-            })
+        # Eğer hala DataFrame dönüyorsa (MultiIndex durumu), ilk sütunu Seri yap
+        if isinstance(close, pd.DataFrame):
+            close = close.iloc[:, 0]
+            
+        return close.dropna()
+    except: 
+        return None
 
-# 7. EXCEL / CSV OLUŞTURMA
-df_final = pd.DataFrame(sonuclar)
-df_final = df_final.sort_values(by='RS_Rating', ascending=False)
-df_final.to_csv('bist_rs_siralamasi.csv', index=False, sep=';')
+def rs_hesapla(fiyatlar, end_perf_skor):
+    if fiyatlar is None or len(fiyatlar) < 252: return None
+    try:
+        # Son Kapanış / Geçmiş Kapanış oranları
+        skor = (0.4 * (fiyatlar.iloc[-1] / fiyatlar.iloc[-min(63, len(fiyatlar))])) + \
+               (0.2 * (fiyatlar.iloc[-1] / fiyatlar.iloc[-min(126, len(fiyatlar))])) + \
+               (0.2 * (fiyatlar.iloc[-1] / fiyatlar.iloc[-min(189, len(fiyatlar))])) + \
+               (0.2 * (fiyatlar.iloc[-1] / fiyatlar.iloc[-min(252, len(fiyatlar))]))
+        return (float(skor) / end_perf_skor) * 100
+    except: 
+        return None
 
-print(f"\nTamamlandı! {len(df_final)} hisse analiz edildi.")
-print("'bist_rs_siralamasi.csv' dosyası oluşturuldu.")
+# Endeks Hazırlığı
+xu100_fiyat = get_price("XU100.IS")
+if xu100_fiyat is not None and len(xu100_fiyat) >= 252:
+    end_perf = (0.4 * (xu100_fiyat.iloc[-1] / xu100_fiyat.iloc[-min(63, len(xu100_fiyat))])) + \
+               (0.2 * (xu100_fiyat.iloc[-1] / xu100_fiyat.iloc[-min(126, len(xu100_fiyat))])) + \
+               (0.2 * (xu100_fiyat.iloc[-1] / xu100_fiyat.iloc[-min(189, len(xu100_fiyat))])) + \
+               (0.2 * (xu100_fiyat.iloc[-1] / xu100_fiyat.iloc[-min(252, len(xu100_fiyat))]))
+    end_perf = float(end_perf)
+else:
+    end_perf = 1.0
+
+sonuclar = []
+print(f"Toplam {len(semboller)} sembol işleniyor...")
+
+for s in semboller:
+    fiyat_serisi = get_price(s)
+    if fiyat_serisi is not None:
+        rs_val = rs_hesapla(fiyat_serisi, end_perf)
+        if rs_val is not None:
+            sonuclar.append({'Hisse': s.replace(".IS", ""), 'RS_Skoru': round(rs_val, 4)})
+    time.sleep(0.05) # Yahoo hız limiti için
+
+if sonuclar:
+    df = pd.DataFrame(sonuclar)
+    # RS Rating hesaplama
+    df['RS_Rating'] = (df['RS_Skoru'].rank(pct=True) * 99).round(1)
+    df = df.sort_values(by='RS_Rating', ascending=False)
+    
+    print("\n--- TRADINGVIEW PARAMETRELERİ ---")
+    quantiles = [0.99, 0.90, 0.70, 0.50, 0.30, 0.10, 0.01]
+    for q in quantiles:
+        val = df['RS_Skoru'].quantile(q)
+        print(f"Quantile {q}: {float(val):.4f}")
+
+    df.to_csv('bist_rs_siralamasi.csv', index=False, sep=';')
+    print(f"\nAnaliz tamamlandı. {len(df)} hisse başarıyla işlendi.")
+else:
+    print("\nHiçbir sonuç üretilemedi. İnternet bağlantınızı veya yfinance kütüphanesini kontrol edin.")
