@@ -1,0 +1,26 @@
+name: SPX RS Rating Otomatik Analiz
+
+on:
+  workflow_dispatch: 
+  schedule:
+    - cron: '0 23 * * 1-5'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repo Kontrol
+        uses: actions/checkout@v3
+      - name: Python Kur
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Kütüphaneleri Yukle
+        run: pip install yfinance pandas
+      - name: Analizi Calistir
+        run: python spx_script.py
+      - name: Sonuclari Kaydet
+        uses: actions/upload-artifact@v4
+        with:
+          name: SPX-RS-Rating-Listesi
+          path: spx_rs_siralamasi.csv
