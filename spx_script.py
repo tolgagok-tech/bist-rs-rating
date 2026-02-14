@@ -36,44 +36,52 @@ semboller = [
     "ALB", "FMC", "MOS", "CF", "NTR", "O", "SPG", "PSA", "AMT", "SBAC",
     "DLR", "WY", "AVB", "EQR", "MAA", "UDR", "CPT", "KIM", "REG", "FRT",
     "PEAK", "DOC", "OHI", "NNN", "ADC", "WPC", "STAG", "INVH", "BXP", "HST",
-    "ARE", "CPT", "AMH", "ELS", "SUI", "EXR", "PSA", "DLR", "WY", "IRM",
-    "SBAC", "AMT", "CCI", "PLD", "WELL", "VTR", "PEAK", "DOC", "OHI", "NNN",
-    "ADC", "WPC", "STAG", "INVH", "BXP", "HST", "ARE", "AMH", "ELS", "SUI",
-    "KIM", "REG", "FRT", "O", "SPG", "AVB", "EQR", "MAA", "UDR", "VICI",
-    "EXC", "XEL", "ETR", "PEG", "PCG", "ED", "WEC", "DTE", "AEE", "ATO",
-    "NRG", "D", "AEP", "NEE", "SO", "DUK", "SRE", "AEP", "FE", "AEE",
-    "CMS", "LNT", "ES", "NI", "CNP", "PNW", "EVRG", "VST", "WLTW", "AON",
-    "AJG", "MMC", "BRO", "WRB", "HIG", "CNA", "RE", "PFG", "MET", "PRU",
-    "AIG", "CB", "TRV", "ALL", "PGR", "L", "GL", "UNM", "AFL", "VOYA",
-    "AMP", "BK", "STT", "NTRS", "BEN", "IVZ", "TROW", "BLK", "MSCI", "SPGI",
-    "CBOE", "NDAQ", "ICE", "CME", "MCO", "FACT", "MS", "GS", "RJF", "SCHW",
-    "IBKR", "STIF", "COF", "DFS", "SYF", "AXP", "BAC", "WFC", "C", "JPM",
-    "USB", "TFC", "PNC", "HBAN", "MTB", "FITB", "KEY", "RF", "CFG", "ZION",
-    "FHN", "BOKF", "EWBC", "WAL", "FRC", "SIVB", "HWC", "ONB", "NYCB", "OZK",
-    "FDS", "JKHY", "FIS", "FISV", "GPN", "MA", "V", "PYPL", "SQ", "ADYEN",
-    "AFRM", "COUP", "BILL", "AVDX", "FLT", "WEX", "EEFT", "GPN", "JKHY", "ACN"
+    "ARE", "AMH", "ELS", "SUI", "EXR", "PSA", "DLR", "WY", "IRM", "SBAC",
+    "AMT", "CCI", "PLD", "WELL", "VTR", "PEAK", "DOC", "OHI", "NNN", "ADC",
+    "WPC", "STAG", "INVH", "BXP", "HST", "ARE", "AMH", "ELS", "SUI", "KIM",
+    "REG", "FRT", "O", "SPG", "AVB", "EQR", "MAA", "UDR", "VICI", "EXC",
+    "XEL", "ETR", "PEG", "PCG", "ED", "WEC", "DTE", "AEE", "ATO", "NRG",
+    "D", "AEP", "NEE", "SO", "DUK", "SRE", "FE", "CMS", "LNT", "ES", "NI",
+    "CNP", "PNW", "EVRG", "VST", "WLTW", "AON", "AJG", "MMC", "BRO", "WRB",
+    "HIG", "CNA", "RE", "PFG", "MET", "PRU", "AIG", "CB", "TRV", "ALL",
+    "PGR", "L", "GL", "UNM", "AFL", "VOYA", "AMP", "BK", "STT", "NTRS",
+    "BEN", "IVZ", "TROW", "BLK", "MSCI", "SPGI", "CBOE", "NDAQ", "ICE", "CME",
+    "MCO", "FACT", "MS", "GS", "RJF", "SCHW", "IBKR", "STIF", "COF", "DFS",
+    "SYF", "AXP", "BAC", "WFC", "C", "JPM", "USB", "TFC", "PNC", "HBAN",
+    "MTB", "FITB", "KEY", "RF", "CFG", "ZION", "FHN", "BOKF", "EWBC", "WAL",
+    "HWC", "ONB", "NYCB", "OZK", "FDS", "JKHY", "FIS", "FISV", "GPN", "MA",
+    "V", "PYPL", "SQ", "AFRM", "FLT", "WEX", "EEFT", "ACN"
 ]
 
 def get_price(ticker):
     try:
-        data = yf.download(ticker, period="2y", interval="1d", progress=False, auto_adjust=True)
+        # ÖNEMLİ: Ham veriyi alıp 'Adj Close' (Düzeltilmiş Kapanış) kullanıyoruz.
+        # Bu sayede NVDA gibi bölünmüş hisselerde hata almayız.
+        data = yf.download(ticker, period="2y", interval="1d", progress=False)
         if data.empty: return None
-        close = data['Close'] if 'Close' in data.columns else data.iloc[:, 0]
-        if isinstance(close, pd.DataFrame): close = close.iloc[:, 0]
+        
+        if 'Adj Close' in data.columns:
+            close = data['Adj Close']
+        else:
+            close = data['Close']
+            
         return close.dropna()
-    except: return None
+    except:
+        return None
 
 def rs_hesapla(fiyatlar, end_perf_skor):
     if fiyatlar is None or len(fiyatlar) < 252: return None
     try:
+        # IBD Standardı Ağırlıklı Formül: Son 3 ay %40, son 6, 9 ve 12 ay %20 ağırlıklı
         skor = (0.4 * (fiyatlar.iloc[-1] / fiyatlar.iloc[-min(63, len(fiyatlar))])) + \
                (0.2 * (fiyatlar.iloc[-1] / fiyatlar.iloc[-min(126, len(fiyatlar))])) + \
                (0.2 * (fiyatlar.iloc[-1] / fiyatlar.iloc[-min(189, len(fiyatlar))])) + \
                (0.2 * (fiyatlar.iloc[-1] / fiyatlar.iloc[-min(252, len(fiyatlar))]))
         return (float(skor) / end_perf_skor) * 100
-    except: return None
+    except:
+        return None
 
-# Endeks Hazırlığı (^GSPC = S&P 500)
+# Karşılaştırma Endeksi Hazırlığı (^GSPC = S&P 500)
 spx_fiyat = get_price("^GSPC")
 if spx_fiyat is not None and len(spx_fiyat) >= 252:
     end_perf = (0.4 * (spx_fiyat.iloc[-1] / spx_fiyat.iloc[-min(63, len(spx_fiyat))])) + \
@@ -93,18 +101,21 @@ for s in semboller:
         rs_val = rs_hesapla(fiyat_serisi, end_perf)
         if rs_val is not None:
             sonuclar.append({'Hisse': s, 'RS_Skoru': round(rs_val, 4)})
-    time.sleep(0.05)
+    time.sleep(0.05) # Yahoo Finance hız limiti koruması
 
 if sonuclar:
     df = pd.DataFrame(sonuclar)
+    # 498 hisse içindeki yüzdelik dilim (Percentile) hesaplama
     df['RS_Rating'] = (df['RS_Skoru'].rank(pct=True) * 99).round(1)
     df = df.sort_values(by='RS_Rating', ascending=False)
     
-    print("\n--- TRADINGVIEW PARAMETRELERİ ---")
+    print("\n--- TRADINGVIEW PARAMETRELERİ (GÜNCEL) ---")
     quantiles = [0.99, 0.90, 0.70, 0.50, 0.30, 0.10, 0.01]
     for q in quantiles:
         val = df['RS_Skoru'].quantile(q)
         print(f"Quantile {int(q*100)}: {float(val):.4f}")
 
     df.to_csv('spx_rs_siralamasi.csv', index=False, sep=';')
-    print(f"\nAnaliz tamamlandı. {len(df)} hisse işlendi.")
+    print(f"\nAnaliz tamamlandı. {len(df)} hisse başarıyla işlendi.")
+else:
+    print("\nSonuç üretilemedi.")
