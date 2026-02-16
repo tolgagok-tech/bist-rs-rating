@@ -19,7 +19,7 @@ hisseler = [
     "IZENR.IS", "EGEEN.IS", "KCAER.IS", "MIATK.IS", "FENER.IS", "BALSU.IS", "CANTE.IS", 
     "ZOREN.IS", "GSRAY.IS", "ALTNY.IS", "YEOTK.IS", "VESBE.IS", "KONTR.IS", "SMRTG.IS", 
     "ALFAS.IS", "ODAS.IS", "BRISA.IS", "KONYA.IS", "TMSN.IS", "BJKAS.IS", "TSPOR.IS", 
-    "A1CAP.IS", "A1YEN.IS"
+    
 ]
 
 print(f"Toplam {len(hisseler)} hisse senedi yüklendi.")
