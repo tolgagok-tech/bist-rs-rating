@@ -100,7 +100,9 @@ if endeks_fiyat is not None and len(endeks_fiyat) >= 252:
                (0.2 * (endeks_fiyat.iloc[-1] / endeks_fiyat.iloc[-min(189, len(endeks_fiyat))])) + \
                (0.2 * (endeks_fiyat.iloc[-1] / endeks_fiyat.iloc[-min(252, len(endeks_fiyat))]))
     end_perf = float(end_perf)
-
+else:
+    print("XUTUM verisi çekilemedi, baz skor 1.0 alınıyor.")
+    end_perf = 1.0
 
 sonuclar = []
 print(f"Toplam {len(semboller)} sembol işleniyor (Baz Endeks: XUTUM)...")
