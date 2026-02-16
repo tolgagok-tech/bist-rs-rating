@@ -3,8 +3,9 @@ import pandas as pd
 import numpy as np
 import time
 
-# Tüm hisseler - yfinance uyumlu (.IS uzantılı)
-hisseler = [
+# --- 1. HİSSE LİSTESİ ---
+# Değişken adını 'hisseler' yerine 'semboller' yaptım ki aşağıdaki döngüyle uyumlu olsun
+semboller = [
     "ASELS.IS", "KLRHO.IS", "GARAN.IS", "ENKAI.IS", "KCHOL.IS", "THYAO.IS", "AKBNK.IS", 
     "FROTO.IS", "TUPRS.IS", "BIMAS.IS", "VAKBN.IS", "HALKB.IS", "YKBNK.IS", "DSTKF.IS", 
     "TCELL.IS", "TTKOM.IS", "SAHOL.IS", "CCOLA.IS", "EREGL.IS", "ASTOR.IS", "GUBRF.IS", 
@@ -18,18 +19,20 @@ hisseler = [
     "HEKTS.IS", "TRENJ.IS", "EUPWR.IS", "SKBNK.IS", "GESAN.IS", "KUYAS.IS", "OBAMS.IS", 
     "IZENR.IS", "EGEEN.IS", "KCAER.IS", "MIATK.IS", "FENER.IS", "BALSU.IS", "CANTE.IS", 
     "ZOREN.IS", "GSRAY.IS", "ALTNY.IS", "YEOTK.IS", "VESBE.IS", "KONTR.IS", "SMRTG.IS", 
-    "ALFAS.IS", "ODAS.IS", "BRISA.IS", "KONYA.IS", "TMSN.IS", "BJKAS.IS", "TSPOR.IS", 
-    
+    "ALFAS.IS", "ODAS.IS", "BRISA.IS", "KONYA.IS", "TMSN.IS", "BJKAS.IS", "TSPOR.IS",
+    "A1CAP.IS", "A1YEN.IS"
 ]
 
-print(f"Toplam {len(hisseler)} hisse senedi yüklendi.")
+print(f"Toplam {len(semboller)} hisse senedi yüklendi.")
+
 # --- 2. YARDIMCI FONKSİYONLAR ---
 def get_price(ticker):
     try:
+        # Tek bir sembol indirirken group_by='column' hata riskini azaltır
         data = yf.download(ticker, period="2y", interval="1d", progress=False, auto_adjust=True)
         if data.empty: return None
         
-        # Yahoo Finance Multi-index düzeltmesi
+        # Yahoo Finance Multi-index kontrolü
         if isinstance(data.columns, pd.MultiIndex):
             data.columns = data.columns.get_level_values(0)
             
@@ -39,14 +42,14 @@ def get_price(ticker):
             close = data.iloc[:, 0]
             
         return close.dropna()
-    except: 
+    except Exception as e: 
         return None
 
 def rs_hesapla(fiyatlar, end_perf_skor):
     # En az 1 yıllık (252 iş günü) veri kontrolü
     if fiyatlar is None or len(fiyatlar) < 252: return None
     try:
-        # RS Formülü: (0.4 * 3ay) + (0.2 * 6ay) + (0.2 * 9ay) + (0.2 * 12ay)
+        # RS Formülü
         skor = (0.4 * (fiyatlar.iloc[-1] / fiyatlar.iloc[-min(63, len(fiyatlar))])) + \
                (0.2 * (fiyatlar.iloc[-1] / fiyatlar.iloc[-min(126, len(fiyatlar))])) + \
                (0.2 * (fiyatlar.iloc[-1] / fiyatlar.iloc[-min(189, len(fiyatlar))])) + \
@@ -56,8 +59,6 @@ def rs_hesapla(fiyatlar, end_perf_skor):
         return None
 
 # --- 3. ANA ANALİZ DÖNGÜSÜ ---
-
-# Baz olarak XU100 kullanmak daha stabil sonuç verir
 endeks_sembol = "XU100.IS"
 endeks_fiyat = get_price(endeks_sembol)
 
@@ -81,13 +82,13 @@ for s in semboller:
         rs_val = rs_hesapla(fiyat_serisi, end_perf)
         if rs_val is not None:
             sonuclar.append({'Hisse': s.replace(".IS", ""), 'RS_Skoru': round(float(rs_val), 4)})
-    # Yahoo sunucularını yormamak için kısa bekleme
+    
+    # Sunucuyu yormamak için çok kısa bekleme
     time.sleep(0.05)
 
 # --- 4. SONUÇLARI RAPORLA VE KAYDET ---
 if sonuclar:
     df = pd.DataFrame(sonuclar)
-    # RS_Rating: %'lik dilime göre 0-99 arası puan verir
     df['RS_Rating'] = (df['RS_Skoru'].rank(pct=True) * 99).round(1)
     df = df.sort_values(by='RS_Skoru', ascending=False)
     
@@ -97,8 +98,7 @@ if sonuclar:
         val = df['RS_Skoru'].quantile(q)
         print(f"Quantile {q}: {float(val):.4f}")
 
-    # CSV Kaydı
     df.to_csv('bist_rs_siralamasi.csv', index=False, sep=';', decimal=',')
     print(f"\nAnaliz tamamlandı. 'bist_rs_siralamasi.csv' dosyası oluşturuldu.")
 else:
-    print("\nHiçbir sonuç üretilemedi. Sembol listesini veya internetinizi kontrol edin.")
+    print("\nHiçbir sonuç üretilemedi. İnternet bağlantınızı veya Yahoo Finance erişimini kontrol edin.")
