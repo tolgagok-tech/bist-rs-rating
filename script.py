@@ -3,18 +3,77 @@ import pandas as pd
 import numpy as np
 import time
 
-# --- SEMBOLLER (Liste aynı kalabilir, örnek için kısa tuttum) ---
-# DMLKT.IS gibi hatalı sembolleri listeden çıkarman temiz bir çıktı sağlar.
+# --- 1. GÜNCEL SEMBOL LİSTESİ ---
+# Hata veren veya delist olan semboller (DMLKT gibi) listeden çıkarılmıştır.
+semboller = [
+    "A1CAP.IS", "A1YEN.IS", "ACSEL.IS", "ADEL.IS", "ADESE.IS", "ADGYO.IS", "AEFES.IS", "AFYON.IS", "AGESA.IS", "AGHOL.IS",
+    "AGROT.IS", "AGYO.IS", "AHGAZ.IS", "AHSGY.IS", "AKBNK.IS", "AKCNS.IS", "AKENR.IS", "AKFGY.IS", "AKFIS.IS", "AKFYE.IS",
+    "AKGRT.IS", "AKHAN.IS", "AKMGY.IS", "AKSA.IS", "AKSEN.IS", "AKSGY.IS", "AKSUE.IS", "AKYHO.IS", "ALARK.IS", "ALBRK.IS",
+    "ALCAR.IS", "ALCTL.IS", "ALFAS.IS", "ALGYO.IS", "ALKA.IS", "ALKIM.IS", "ALKLC.IS", "ALTNY.IS", "ALVES.IS", "ANELE.IS",
+    "ANGEN.IS", "ANHYT.IS", "ANSGR.IS", "ARASE.IS", "ARCLK.IS", "ARDYZ.IS", "ARENA.IS", "ARFYE.IS", "ARMGD.IS", "ARSAN.IS",
+    "ARTMS.IS", "ARZUM.IS", "ASELS.IS", "ASGYO.IS", "ASTOR.IS", "ASUZU.IS", "ATAGY.IS", "ATAKP.IS", "ATATP.IS", "ATEKS.IS",
+    "ATLAS.IS", "ATSYH.IS", "AVGYO.IS", "AVHOL.IS", "AVOD.IS", "AVPGY.IS", "AVTUR.IS", "AYCES.IS", "AYDEM.IS", "AYEN.IS",
+    "AYES.IS", "AYGAZ.IS", "AZTEK.IS", "BAGFS.IS", "BAHKM.IS", "BAKAB.IS", "BALAT.IS", "BALSU.IS", "BANVT.IS", "BARMA.IS",
+    "BASCM.IS", "BASGZ.IS", "BAYRK.IS", "BEGYO.IS", "BERA.IS", "BESLR.IS", "BEYAZ.IS", "BFREN.IS", "BIENY.IS", "BIGCH.IS",
+    "BIGEN.IS", "BIGTK.IS", "BIMAS.IS", "BINBN.IS", "BINHO.IS", "BIOEN.IS", "BIZIM.IS", "BJKAS.IS", "BLCYT.IS", "BLUME.IS",
+    "BMSCH.IS", "BMSTL.IS", "BNTAS.IS", "BOBET.IS", "BORLS.IS", "BORSK.IS", "BOSSA.IS", "BRISA.IS", "BRKSN.IS", "BRKVY.IS",
+    "BRLSM.IS", "BRSAN.IS", "BRYAT.IS", "BSOKE.IS", "BTCIM.IS", "BUCIM.IS", "BULGS.IS", "BURCE.IS", "BURVA.IS", "BVSAN.IS",
+    "BYDNR.IS", "CANTE.IS", "CATES.IS", "CCOLA.IS", "CELHA.IS", "CEMAS.IS", "CEMTS.IS", "CEMZY.IS", "CEOEM.IS", "CGCAM.IS",
+    "CIMSA.IS", "CLEBI.IS", "CMBTN.IS", "CMENT.IS", "CONSE.IS", "COSMO.IS", "CRDFA.IS", "CRFSA.IS", "CUSAN.IS", "CVKMD.IS",
+    "CWENE.IS", "DAGI.IS", "DAPGM.IS", "DARDL.IS", "DCTTR.IS", "DENGE.IS", "DERHL.IS", "DERIM.IS", "DESA.IS", "DESPC.IS",
+    "DEVA.IS", "DGATE.IS", "DGGYO.IS", "DGNMO.IS", "DIRIT.IS", "DITAS.IS", "DMRGD.IS", "DMSAS.IS", "DNISI.IS",
+    "DOAS.IS", "DOFER.IS", "DOFRB.IS", "DOGUB.IS", "DOHOL.IS", "DOKTA.IS", "DSTKF.IS", "DUNYH.IS", "DURDO.IS", "DURKN.IS",
+    "DYOBY.IS", "DZGYO.IS", "EBEBK.IS", "ECILC.IS", "ECOGR.IS", "ECZYT.IS", "EDATA.IS", "EFOR.IS", "EGEEN.IS", "EGEGY.IS",
+    "EGEPO.IS", "EGGUB.IS", "EGPRO.IS", "EGSER.IS", "EKIZ.IS", "EKOS.IS", "EKSUN.IS", "ELITE.IS", "EMKEL.IS", "EMNIS.IS",
+    "ENDAE.IS", "ENERY.IS", "ENJSA.IS", "ENKAI.IS", "ENSRI.IS", "ENTRA.IS", "ERBOS.IS", "ERCB.IS", "EREGL.IS", "ERSU.IS",
+    "ESCAR.IS", "ESCOM.IS", "ESEN.IS", "ETYAT.IS", "EUHOL.IS", "EUKYO.IS", "EUPWR.IS", "EUREN.IS", "EUYO.IS", "EYGYO.IS",
+    "FADE.IS", "FENER.IS", "FLAP.IS", "FMIZP.IS", "FONET.IS", "FORMT.IS", "FORTE.IS", "FRIGO.IS", "FRMPL.IS", "FROTO.IS",
+    "FZLGY.IS", "GARAN.IS", "GARFA.IS", "GATEG.IS", "GEDIK.IS", "GEDZA.IS", "GENIL.IS", "GENTS.IS", "GEREL.IS", "GESAN.IS",
+    "GIPTA.IS", "GLBMD.IS", "GLCVY.IS", "GLRMK.IS", "GLRYH.IS", "GLYHO.IS", "GMTAS.IS", "GOKNR.IS", "GOLTS.IS", "GOODY.IS",
+    "GOZDE.IS", "GRNYO.IS", "GRSEL.IS", "GRTHO.IS", "GSDDE.IS", "GSDHO.IS", "GSRAY.IS", "GUBRF.IS", "GUNDG.IS", "GWIND.IS",
+    "GZNMI.IS", "HALKB.IS", "HATEK.IS", "HATSN.IS", "HDFGS.IS", "HEDEF.IS", "HEKTS.IS", "HKTM.IS", "HLGYO.IS", "HOROZ.IS",
+    "HRKET.IS", "HTTBT.IS", "HUBVC.IS", "HUNER.IS", "HURGZ.IS", "ICBCT.IS", "ICUGS.IS", "IDGYO.IS", "IEYHO.IS", "IHAAS.IS",
+    "IHEVA.IS", "IHGZT.IS", "IHLAS.IS", "IHLGM.IS", "IHYAY.IS", "IMASM.IS", "INDES.IS", "INFO.IS", "INGRM.IS", "INTEK.IS",
+    "INTEM.IS", "INVEO.IS", "INVES.IS", "ISBIR.IS", "ISDMR.IS", "ISFIN.IS", "ISGSY.IS", "ISGYO.IS", "ISKPL.IS", "ISMEN.IS",
+    "ISSEN.IS", "ISYAT.IS", "IZENR.IS", "IZFAS.IS", "IZINV.IS", "IZMDC.IS", "JANTS.IS", "KAPLM.IS", "KAREL.IS", "KARSN.IS",
+    "KARTN.IS", "KATMR.IS", "KAYSE.IS", "KBORU.IS", "KCAER.IS", "KCHOL.IS", "KENT.IS", "KERVN.IS", "KFEIN.IS", "KGYO.IS",
+    "KIMMR.IS", "KLGYO.IS", "KLKIM.IS", "KLMSN.IS", "KLNMA.IS", "KLRHO.IS", "KLSER.IS", "KLSYN.IS", "KLYPV.IS", "KMPUR.IS",
+    "KNFRT.IS", "KOCMT.IS", "KONKA.IS", "KONTR.IS", "KONYA.IS", "KOPOL.IS", "KORDS.IS", "KOTON.IS", "KRDMA.IS", "KRGYO.IS",
+    "KRONT.IS", "KRPLS.IS", "KRSTL.IS", "KRTEK.IS", "KRVGD.IS", "KSTUR.IS", "KTLEV.IS", "KTSKR.IS", "KUTPO.IS", "KUYAS.IS",
+    "KZBGY.IS", "KZGYO.IS", "LIDER.IS", "LIDFA.IS", "LILAK.IS", "LINK.IS", "LKMNH.IS", "LMKDC.IS", "LOGO.IS", "LRSHO.IS",
+    "LUKSK.IS", "LYDHO.IS", "LYDYE.IS", "MAALT.IS", "MACKO.IS", "MAGEN.IS", "MAKIM.IS", "MAKTK.IS", "MANAS.IS", "MARBL.IS",
+    "MARKA.IS", "MARMR.IS", "MARTI.IS", "MAVI.IS", "MEDTR.IS", "MEGMT.IS", "MEKAG.IS", "MEPET.IS", "MERCN.IS", "MERIT.IS",
+    "MERKO.IS", "METRO.IS", "MEYSU.IS", "MGROS.IS", "MHRGY.IS", "MIATK.IS", "MMCAS.IS", "MNDRS.IS", "MNDTR.IS", "MOBTL.IS",
+    "MOGAN.IS", "MOPAS.IS", "MPARK.IS", "MRGYO.IS", "MRSHL.IS", "MSGYO.IS", "MTRKS.IS", "MTRYO.IS", "NATEN.IS", "NETAS.IS",
+    "NETCD.IS", "NIBAS.IS", "NTGAZ.IS", "NTHOL.IS", "NUGYO.IS", "NUHCM.IS", "OBAMS.IS", "OBASE.IS", "ODAS.IS", "ODINE.IS",
+    "OFSYM.IS", "ONCSM.IS", "ONRYT.IS", "ORCAY.IS", "ORGE.IS", "ORMA.IS", "OSMEN.IS", "OSTIM.IS", "OTKAR.IS", "OYAKC.IS",
+    "OYAYO.IS", "OYLUM.IS", "OYYAT.IS", "OZATD.IS", "OZGYO.IS", "OZKGY.IS", "OZRDN.IS", "OZSUB.IS", "OZYSR.IS", "PAGYO.IS",
+    "PAHOL.IS", "PAMEL.IS", "PAPIL.IS", "PARSN.IS", "PASEU.IS", "PATEK.IS", "PCILT.IS", "PEKGY.IS", "PENGD.IS", "PENTA.IS",
+    "PETKM.IS", "PETUN.IS", "PGSUS.IS", "PINSU.IS", "PKART.IS", "PKENT.IS", "PLTUR.IS", "PNLSN.IS", "PNSUT.IS", "POLHO.IS",
+    "POLTK.IS", "PRDGS.IS", "PRKAB.IS", "PRKME.IS", "PRZMA.IS", "PSDTC.IS", "PSGYO.IS", "QNBFK.IS", "QNBTR.IS", "QUAGR.IS",
+    "RALYH.IS", "RAYSG.IS", "REEDR.IS", "RGYAS.IS", "RNPOL.IS", "RODRG.IS", "RTALB.IS", "RUBNS.IS", "RUZYE.IS", "RYGYO.IS",
+    "RYSAS.IS", "SAFKR.IS", "SAHOL.IS", "SAMAT.IS", "SANEL.IS", "SANFM.IS", "SANKO.IS", "SARKY.IS", "SASA.IS", "SAYAS.IS",
+    "SDTTR.IS", "SEGMN.IS", "SEGYO.IS", "SEKFK.IS", "SEKUR.IS", "SELEC.IS", "SELVA.IS", "SERNT.IS", "SEYKM.IS", "SILVR.IS",
+    "SISE.IS", "SKBNK.IS", "SKTAS.IS", "SKYLP.IS", "SKYMD.IS", "SMART.IS", "SMRTG.IS", "SMRVA.IS", "SNGYO.IS", "SNICA.IS",
+    "SNPAM.IS", "SODSN.IS", "SOKE.IS", "SOKM.IS", "SONME.IS", "SRVGY.IS", "SUMAS.IS", "SUNTK.IS", "SURGY.IS", "SUWEN.IS",
+    "TABGD.IS", "TARKM.IS", "TATEN.IS", "TATGD.IS", "TAVHL.IS", "TBORG.IS", "TCELL.IS", "TCKRC.IS", "TDGYO.IS", "TEHOL.IS",
+    "TEKTU.IS", "TERA.IS", "TEZOL.IS", "TGSAS.IS", "THYAO.IS", "TKFEN.IS", "TKNSA.IS", "TLMAN.IS", "TMPOL.IS", "TMSN.IS",
+    "TNZTP.IS", "TOASO.IS", "TRALT.IS", "TRCAS.IS", "TRENJ.IS", "TRGYO.IS", "TRHOL.IS", "TRILC.IS", "TRMET.IS", "TSGYO.IS",
+    "TSKB.IS", "TSPOR.IS", "TTKOM.IS", "TTRAK.IS", "TUCLK.IS", "TUKAS.IS", "TUPRS.IS", "TUREX.IS", "TURGG.IS", "TURSG.IS",
+    "UCAYM.IS", "UFUK.IS", "ULAS.IS", "ULKER.IS", "ULUFA.IS", "ULUSE.IS", "ULUUN.IS", "UNLU.IS", "USAK.IS", "VAKBN.IS",
+    "VAKFA.IS", "VAKFN.IS", "VAKKO.IS", "VANGD.IS", "VBTYZ.IS", "VERTU.IS", "VERUS.IS", "VESBE.IS", "VESTL.IS", "VKFYO.IS",
+    "VKGYO.IS", "VKING.IS", "VRGYO.IS", "VSNMD.IS", "YAPRK.IS", "YATAS.IS", "YAYLA.IS", "YBTAS.IS", "YEOTK.IS", "YESIL.IS",
+    "YGGYO.IS", "YGYO.IS", "YIGIT.IS", "YKBNK.IS", "YKSLN.IS", "YONGA.IS", "YUNSA.IS", "YYAPI.IS", "YYLGD.IS", "ZEDUR.IS",
+    "ZERGY.IS", "ZGYO.IS", "ZOREN.IS", "ZRGYO.IS"
+]
 
+# --- 2. YARDIMCI FONKSİYONLAR ---
 def get_price(ticker):
     try:
-        # threads=False ve ignore_tz=True veri çekme kararlılığını artırır
-        data = yf.download(ticker, period="2y", interval="1d", progress=False, auto_adjust=True, threads=False)
+        data = yf.download(ticker, period="2y", interval="1d", progress=False, auto_adjust=True)
+        if data.empty: return None
         
-        if data.empty: 
-            return None
-        
-        # Multi-index sütun yapısını kontrol et ve temizle
+        # Yahoo Finance Multi-index düzeltmesi
         if isinstance(data.columns, pd.MultiIndex):
             data.columns = data.columns.get_level_values(0)
             
@@ -24,30 +83,26 @@ def get_price(ticker):
             close = data.iloc[:, 0]
             
         return close.dropna()
-    except Exception as e:
-        # Hata mesajını görmek istersen: print(f"{ticker} hatası: {e}")
+    except: 
         return None
 
 def rs_hesapla(fiyatlar, end_perf_skor):
-    # Minimum 252 iş günü (yaklaşık 1 yıl) veri şartı
-    if fiyatlar is None or len(fiyatlar) < 252: 
-        return None
+    # En az 1 yıllık (252 iş günü) veri kontrolü
+    if fiyatlar is None or len(fiyatlar) < 252: return None
     try:
-        # RS Formülü: Ağırlıklı getiri
+        # RS Formülü: (0.4 * 3ay) + (0.2 * 6ay) + (0.2 * 9ay) + (0.2 * 12ay)
         skor = (0.4 * (fiyatlar.iloc[-1] / fiyatlar.iloc[-min(63, len(fiyatlar))])) + \
                (0.2 * (fiyatlar.iloc[-1] / fiyatlar.iloc[-min(126, len(fiyatlar))])) + \
                (0.2 * (fiyatlar.iloc[-1] / fiyatlar.iloc[-min(189, len(fiyatlar))])) + \
                (0.2 * (fiyatlar.iloc[-1] / fiyatlar.iloc[-min(252, len(fiyatlar))]))
-        
-        # Endeks performansına oranla (Relative Strength)
         return (float(skor) / end_perf_skor) * 100
     except: 
         return None
 
-# --- ENDEKS HAZIRLIĞI ---
-# XUTUM.IS yerine XU100.IS daha garantidir. 
-# Eğer XUTUM hata veriyorsa aşağıyı "XU100.IS" yapabilirsin.
-endeks_sembol = "XU100.IS" 
+# --- 3. ANA ANALİZ DÖNGÜSÜ ---
+
+# Baz olarak XU100 kullanmak daha stabil sonuç verir
+endeks_sembol = "XU100.IS"
 endeks_fiyat = get_price(endeks_sembol)
 
 if endeks_fiyat is not None and len(endeks_fiyat) >= 252:
@@ -69,27 +124,25 @@ for s in semboller:
     if fiyat_serisi is not None and len(fiyat_serisi) >= 252:
         rs_val = rs_hesapla(fiyat_serisi, end_perf)
         if rs_val is not None:
-            sonuclar.append({
-                'Hisse': s.replace(".IS", ""), 
-                'RS_Skoru': float(rs_val)
-            })
-    # Yahoo ban yememek için küçük bir bekleme
-    time.sleep(0.1)
+            sonuclar.append({'Hisse': s.replace(".IS", ""), 'RS_Skoru': round(float(rs_val), 4)})
+    # Yahoo sunucularını yormamak için kısa bekleme
+    time.sleep(0.05)
 
+# --- 4. SONUÇLARI RAPORLA VE KAYDET ---
 if sonuclar:
     df = pd.DataFrame(sonuclar)
-    # RS_Rating: 0-99 arası puanlama
+    # RS_Rating: %'lik dilime göre 0-99 arası puan verir
     df['RS_Rating'] = (df['RS_Skoru'].rank(pct=True) * 99).round(1)
     df = df.sort_values(by='RS_Skoru', ascending=False)
     
-    print("\n--- TRADINGVIEW PARAMETRELERİ ---")
+    print("\n--- TRADINGVIEW PARAMETRELERİ (GÜNCEL) ---")
     quantiles = [0.99, 0.90, 0.70, 0.50, 0.30, 0.10, 0.01]
     for q in quantiles:
         val = df['RS_Skoru'].quantile(q)
         print(f"Quantile {q}: {float(val):.4f}")
 
-    # CSV olarak kaydet
+    # CSV Kaydı
     df.to_csv('bist_rs_siralamasi.csv', index=False, sep=';', decimal=',')
-    print(f"\nAnaliz tamamlandı. 'bist_rs_siralamasi.csv' oluşturuldu.")
+    print(f"\nAnaliz tamamlandı. 'bist_rs_siralamasi.csv' dosyası oluşturuldu.")
 else:
-    print("\nHiçbir sonuç üretilemedi. Sembolleri veya internet bağlantısını kontrol edin.")
+    print("\nHiçbir sonuç üretilemedi. Sembol listesini veya internetinizi kontrol edin.")
