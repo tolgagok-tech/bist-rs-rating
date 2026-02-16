@@ -68,20 +68,14 @@ semboller = [
 
 def get_price(ticker):
     try:
-        # Multi-level index karmaşasını çözmek için auto_adjust=True ekledik
         data = yf.download(ticker, period="2y", interval="1d", progress=False, auto_adjust=True)
         if data.empty: return None
-        
-        # Sütun yapısı ne olursa olsun 'Close' veya ilk sütunu al
         if 'Close' in data.columns:
             close = data['Close']
         else:
             close = data.iloc[:, 0]
-            
-        # Eğer hala DataFrame dönüyorsa (MultiIndex durumu), ilk sütunu Seri yap
         if isinstance(close, pd.DataFrame):
             close = close.iloc[:, 0]
-            
         return close.dropna()
     except: 
         return None
@@ -89,7 +83,6 @@ def get_price(ticker):
 def rs_hesapla(fiyatlar, end_perf_skor):
     if fiyatlar is None or len(fiyatlar) < 252: return None
     try:
-        # Son Kapanış / Geçmiş Kapanış oranları
         skor = (0.4 * (fiyatlar.iloc[-1] / fiyatlar.iloc[-min(63, len(fiyatlar))])) + \
                (0.2 * (fiyatlar.iloc[-1] / fiyatlar.iloc[-min(126, len(fiyatlar))])) + \
                (0.2 * (fiyatlar.iloc[-1] / fiyatlar.iloc[-min(189, len(fiyatlar))])) + \
@@ -98,19 +91,19 @@ def rs_hesapla(fiyatlar, end_perf_skor):
     except: 
         return None
 
-# Endeks Hazırlığı
-xu100_fiyat = get_price("XU100.IS")
-if xu100_fiyat is not None and len(xu100_fiyat) >= 252:
-    end_perf = (0.4 * (xu100_fiyat.iloc[-1] / xu100_fiyat.iloc[-min(63, len(xu100_fiyat))])) + \
-               (0.2 * (xu100_fiyat.iloc[-1] / xu100_fiyat.iloc[-min(126, len(xu100_fiyat))])) + \
-               (0.2 * (xu100_fiyat.iloc[-1] / xu100_fiyat.iloc[-min(189, len(xu100_fiyat))])) + \
-               (0.2 * (xu100_fiyat.iloc[-1] / xu100_fiyat.iloc[-min(252, len(xu100_fiyat))]))
+# --- ENDEKS HAZIRLIĞI (XUTUM OLARAK GÜNCELLENDİ) ---
+endeks_fiyat = get_price("XUTUM.IS")
+
+if endeks_fiyat is not None and len(endeks_fiyat) >= 252:
+    end_perf = (0.4 * (endeks_fiyat.iloc[-1] / endeks_fiyat.iloc[-min(63, len(endeks_fiyat))])) + \
+               (0.2 * (endeks_fiyat.iloc[-1] / endeks_fiyat.iloc[-min(126, len(endeks_fiyat))])) + \
+               (0.2 * (endeks_fiyat.iloc[-1] / endeks_fiyat.iloc[-min(189, len(endeks_fiyat))])) + \
+               (0.2 * (endeks_fiyat.iloc[-1] / endeks_fiyat.iloc[-min(252, len(endeks_fiyat))]))
     end_perf = float(end_perf)
-else:
-    end_perf = 1.0
+
 
 sonuclar = []
-print(f"Toplam {len(semboller)} sembol işleniyor...")
+print(f"Toplam {len(semboller)} sembol işleniyor (Baz Endeks: XUTUM)...")
 
 for s in semboller:
     fiyat_serisi = get_price(s)
@@ -118,11 +111,10 @@ for s in semboller:
         rs_val = rs_hesapla(fiyat_serisi, end_perf)
         if rs_val is not None:
             sonuclar.append({'Hisse': s.replace(".IS", ""), 'RS_Skoru': round(rs_val, 4)})
-    time.sleep(0.05) # Yahoo hız limiti için
+    time.sleep(0.05)
 
 if sonuclar:
     df = pd.DataFrame(sonuclar)
-    # RS Rating hesaplama
     df['RS_Rating'] = (df['RS_Skoru'].rank(pct=True) * 99).round(1)
     df = df.sort_values(by='RS_Rating', ascending=False)
     
@@ -132,7 +124,7 @@ if sonuclar:
         val = df['RS_Skoru'].quantile(q)
         print(f"Quantile {q}: {float(val):.4f}")
 
-    df.to_csv('bist_rs_siralamasi.csv', index=False, sep=';')
+    df.to_csv('bist_rs_siralamasi_xutum.csv', index=False, sep=';')
     print(f"\nAnaliz tamamlandı. {len(df)} hisse başarıyla işlendi.")
 else:
-    print("\nHiçbir sonuç üretilemedi. İnternet bağlantınızı veya yfinance kütüphanesini kontrol edin.")
+    print("\nSonuç üretilemedi.")
