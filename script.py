@@ -3,27 +3,26 @@ import pandas as pd
 import numpy as np
 import time
 
-# Dosyadaki hisse senetlerinin yfinance uyumlu listesi
-hisse_listesi = [
-    "ASELS.IS", "KLRHO.IS", "GARAN.IS", "ENKAI.IS", "KCHOL.IS", "THYAO.IS", 
-    "AKBNK.IS", "FROTO.IS", "TUPRS.IS", "BIMAS.IS", "VAKBN.IS", "HALKB.IS", 
-    "YKBNK.IS", "DSTKF.IS", "TCELL.IS", "TTKOM.IS", "SAHOL.IS", "CCOLA.IS", 
-    "EREGL.IS", "ASTOR.IS", "GUBRF.IS", "TOASO.IS", "TRALT.IS", "SISE.IS", 
-    "MAGEN.IS", "OYAKC.IS", "ENJSA.IS", "TAVHL.IS", "AEFES.IS", "TURSG.IS", 
-    "MGROS.IS", "SASA.IS", "PGSUS.IS", "BRSAN.IS", "MPARK.IS", "PASEU.IS", 
-    "ARCLK.IS", "AKSEN.IS", "AGHOL.IS", "ECILC.IS", "KTLEV.IS", "ENERY.IS", 
-    "ISMEN.IS", "TABGD.IS", "BRYAT.IS", "GLRMK.IS", "RALYH.IS", "OTKAR.IS", 
-    "DOHOL.IS", "TTRAK.IS", "ANSGR.IS", "TRMET.IS", "ULKER.IS", "CIMSA.IS", 
-    "EFOR.IS", "ALARK.IS", "PETKM.IS", "BSOKE.IS", "DOAS.IS", "AKSA.IS", 
-    "SOKM.IS", "TSKB.IS", "MAVI.IS", "GRSEL.IS", "GENIL.IS", "CWENE.IS", 
-    "DAPGM.IS", "GRTHO.IS", "TKFEN.IS", "BTCIM.IS", "HEKTS.IS", "TRENJ.IS", 
-    "EUPWR.IS", "SKBNK.IS", "GESAN.IS", "KUYAS.IS", "OBAMS.IS", "IZENR.IS", 
-    "EGEEN.IS", "KCAER.IS", "MIATK.IS", "FENER.IS", "BALSU.IS", "CANTE.IS", 
-    "ZOREN.IS", "GSRAY.IS", "ALTNY.IS"
+# Tüm hisseler - yfinance uyumlu (.IS uzantılı)
+hisseler = [
+    "ASELS.IS", "KLRHO.IS", "GARAN.IS", "ENKAI.IS", "KCHOL.IS", "THYAO.IS", "AKBNK.IS", 
+    "FROTO.IS", "TUPRS.IS", "BIMAS.IS", "VAKBN.IS", "HALKB.IS", "YKBNK.IS", "DSTKF.IS", 
+    "TCELL.IS", "TTKOM.IS", "SAHOL.IS", "CCOLA.IS", "EREGL.IS", "ASTOR.IS", "GUBRF.IS", 
+    "TOASO.IS", "TRALT.IS", "SISE.IS", "MAGEN.IS", "OYAKC.IS", "ENJSA.IS", "TAVHL.IS", 
+    "AEFES.IS", "TURSG.IS", "MGROS.IS", "SASA.IS", "PGSUS.IS", "BRSAN.IS", "MPARK.IS", 
+    "PASEU.IS", "ARCLK.IS", "AKSEN.IS", "AGHOL.IS", "ECILC.IS", "KTLEV.IS", "ENERY.IS", 
+    "ISMEN.IS", "TABGD.IS", "BRYAT.IS", "GLRMK.IS", "RALYH.IS", "OTKAR.IS", "DOHOL.IS", 
+    "TTRAK.IS", "ANSGR.IS", "TRMET.IS", "ULKER.IS", "CIMSA.IS", "EFOR.IS", "ALARK.IS", 
+    "PETKM.IS", "BSOKE.IS", "DOAS.IS", "AKSA.IS", "SOKM.IS", "TSKB.IS", "MAVI.IS", 
+    "GRSEL.IS", "GENIL.IS", "CWENE.IS", "DAPGM.IS", "GRTHO.IS", "TKFEN.IS", "BTCIM.IS", 
+    "HEKTS.IS", "TRENJ.IS", "EUPWR.IS", "SKBNK.IS", "GESAN.IS", "KUYAS.IS", "OBAMS.IS", 
+    "IZENR.IS", "EGEEN.IS", "KCAER.IS", "MIATK.IS", "FENER.IS", "BALSU.IS", "CANTE.IS", 
+    "ZOREN.IS", "GSRAY.IS", "ALTNY.IS", "YEOTK.IS", "VESBE.IS", "KONTR.IS", "SMRTG.IS", 
+    "ALFAS.IS", "ODAS.IS", "BRISA.IS", "KONYA.IS", "TMSN.IS", "BJKAS.IS", "TSPOR.IS", 
+    "A1CAP.IS", "A1YEN.IS"
 ]
 
-# Örnek kullanım (İlk 5 hisseyi yazdırma)
-print(hisse_listesi[:5])
+print(f"Toplam {len(hisseler)} hisse senedi yüklendi.")
 # --- 2. YARDIMCI FONKSİYONLAR ---
 def get_price(ticker):
     try:
