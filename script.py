@@ -91,9 +91,8 @@ def rs_hesapla(fiyatlar, end_perf_skor):
     except: 
         return None
 
-# --- ENDEKS HAZIRLIĞI (XUTUM OLARAK GÜNCELLENDİ) ---
+# --- ENDEKS HAZIRLIĞI (XU100 -> XUTUM OLARAK DEĞİŞTİ) ---
 endeks_fiyat = get_price("XUTUM.IS")
-
 if endeks_fiyat is not None and len(endeks_fiyat) >= 252:
     end_perf = (0.4 * (endeks_fiyat.iloc[-1] / endeks_fiyat.iloc[-min(63, len(endeks_fiyat))])) + \
                (0.2 * (endeks_fiyat.iloc[-1] / endeks_fiyat.iloc[-min(126, len(endeks_fiyat))])) + \
@@ -105,7 +104,7 @@ else:
     end_perf = 1.0
 
 sonuclar = []
-print(f"Toplam {len(semboller)} sembol işleniyor (Baz Endeks: XUTUM)...")
+print(f"Toplam {len(semboller)} sembol işleniyor (Baz: XUTUM)...")
 
 for s in semboller:
     fiyat_serisi = get_price(s)
@@ -126,7 +125,8 @@ if sonuclar:
         val = df['RS_Skoru'].quantile(q)
         print(f"Quantile {q}: {float(val):.4f}")
 
-    df.to_csv('bist_rs_siralamasi_xutum.csv', index=False, sep=';')
-    print(f"\nAnaliz tamamlandı. {len(df)} hisse başarıyla işlendi.")
+    # --- EXCEL / CSV KAYIT (KODUN ÖZÜ) ---
+    df.to_csv('bist_rs_siralamasi.csv', index=False, sep=';')
+    print(f"\nAnaliz tamamlandı. 'bist_rs_siralamasi.csv' dosyası oluşturuldu.")
 else:
-    print("\nSonuç üretilemedi.")
+    print("\nHiçbir sonuç üretilemedi.")
