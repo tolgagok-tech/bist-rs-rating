@@ -60,5 +60,5 @@ if sonuclar:
         val = df['RS_Skoru'].quantile(q)
         print(f"Quantile {int(q*100)}: {float(val):.4f}")
 
-    df.to_csv('spx_rs_siralamasi.csv', index=False, sep=';')
+    df.to_csv('yeni_rs_siralamasi.csv', index=False, sep=';')
     print(f"\nAnaliz tamamlandı. {len(df)} hisse işlendi.")
