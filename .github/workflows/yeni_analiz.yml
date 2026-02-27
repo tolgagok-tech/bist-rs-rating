@@ -16,11 +16,13 @@ jobs:
         with:
           python-version: '3.9'
       - name: Kütüphaneleri Yukle
-        run: pip install yfinance pandas
+        run: pip install yfinance pandas numpy
       - name: Analizi Calistir
-        run: python spx_script.py
+        # BURAYI GÜNCELLEDİK: Kendi dosya adınızı yazdık
+        run: python yeni_analiz.py 
       - name: Sonuclari Kaydet
         uses: actions/upload-artifact@v4
         with:
           name: SPX-RS-Rating-Listesi
-          path: spx_rs_siralamasi.csv
+          # BURAYI GÜNCELLEDİK: Python'ın oluşturduğu dosya adını yazdık
+          path: yeni_rs_siralamasi.csv
